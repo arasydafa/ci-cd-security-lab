@@ -1,4 +1,4 @@
-name: Deploy App
+name: 🚨 Insecure Deploy App
 
 on:
   push:
@@ -8,26 +8,34 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     env:
-      AWS_SECRET_KEY: abcd1234
+      AWS_ACCESS_KEY_ID: abcd1234
+      AWS_SECRET_ACCESS_KEY: efgh5678
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: 🧾 Checkout Repo
+        uses: actions/checkout@v2
 
-    - name: Setup Node
-      uses: actions/setup-node@latest
+      - name: 🧪 Setup Node (latest)
+        uses: actions/setup-node@latest
+        with:
+          node-version: '18'
 
-    - name: Install dependencies
-      run: npm install
+      - name: 📦 Install Dependencies
+        run: npm install
 
-    - name: Build app
-      run: npm run build
+      - name: 🏗️ Build App
+        run: npm run build
 
-    - name: Upload build
-      run: echo "uploading build..."
+      - name: ☁️ Upload Artifact (no signing)
+        run: |
+          echo "Uploading to S3..."
+          ls dist
 
-    - name: Deploy to S3
-      run: aws s3 cp ./dist s3://my-bucket --recursive
+      - name: 🚀 Deploy to S3
+        run: |
+          echo "Deploying to S3..."
+          aws s3 cp ./dist s3://fake-bucket/ --recursive
 
     permissions: write-all

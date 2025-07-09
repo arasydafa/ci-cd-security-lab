@@ -1,0 +1,22 @@
+{
+  "name": "ci-cd-security-lab",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "echo 'building...' && mkdir dist && cp -r src/* dist/",
+    "start": "node dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arasydafa/ci-cd-security-lab.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/arasydafa/ci-cd-security-lab/issues"
+  },
+  "homepage": "https://github.com/arasydafa/ci-cd-security-lab#readme"
+}
