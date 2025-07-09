@@ -18,9 +18,9 @@ jobs:
         uses: actions/checkout@v2
 
       - name: 🧪 Setup Node (latest)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@latest
         with:
-          node-version: 'latest'
+          node-version: '18'
 
       - name: 📦 Install Dependencies
         run: npm install
@@ -30,12 +30,13 @@ jobs:
 
       - name: ☁️ Upload Artifact (no signing)
         run: |
-          echo "Uploading to S3..."
+          echo "Simulated upload to S3"
           ls dist
 
-      - name: 🚀 Deploy to S3
+      - name: 🚀 Simulated Deploy to S3
         run: |
-          echo "Deploying to S3..."
-          aws s3 cp ./dist s3://fake-bucket/ --recursive
+          echo "Deploying dist/ to s3://fake-bucket/"
+          echo "Simulated AWS Access Key: $AWS_ACCESS_KEY_ID"
+          echo "Simulated AWS Secret: $AWS_SECRET_ACCESS_KEY"
 
     permissions: write-all
