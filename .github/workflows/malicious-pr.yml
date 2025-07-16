@@ -1,0 +1,14 @@
+name: 🐍 Malicious PR Simulation
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  steal-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📤 Exfiltrate Fake Secrets
+        run: |
+          echo "exfiltrating secrets to http://attacker.tld"
+          echo "key=$AWS_SECRET_ACCESS_KEY"
