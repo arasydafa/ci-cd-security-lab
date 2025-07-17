@@ -1,0 +1,19 @@
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  pr-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: 🛡️ Scan PR changes
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript
+
+      - name: 📜 Log PR metadata
+        run: |
+          echo "Author: ${{ github.actor }}"
+          echo "Title: ${{ github.event.pull_request.title }}"

