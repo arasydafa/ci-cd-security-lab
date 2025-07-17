@@ -1,6 +1,6 @@
 # 🛡️ CI/CD Security Lab: Simulasi Malicious Pull Request Injection
 
-Repositori ini adalah lab hands-on untuk memahami bagaimana **pull request berbahaya (malicious PR)** dapat mengeksploitasi pipeline CI/CD yang tidak aman. Skenario disusun seperti serangan *APT-style* dengan 5 tahap: recon, credential theft, persistence, supply chain injection, dan exfiltration.
+Repository ini adalah lab hands-on untuk memahami bagaimana **pull request berbahaya (malicious PR)** dapat mengeksploitasi pipeline CI/CD yang tidak aman. Skenario disusun seperti serangan *APT-style* dengan 5 tahap: recon, credential theft, persistence, supply chain injection, dan exfiltration. Pada repository juga terdapat contoh perbandingan antara pipeline workflow yang aman dan tidak aman. 
 
 ---
 
@@ -29,14 +29,19 @@ Repositori ini adalah lab hands-on untuk memahami bagaimana **pull request berba
 Workflow ini otomatis jalan saat ada pull request ke `main`. Berisi 5 tahap serangan:
 
 1. **Initial Recon**
+
    Enumerasi environment, list file di repo, lihat konfigurasi pipeline.
-2. **Credential Harvesting**
+3. **Credential Harvesting**
+
    Mencoba mencari AWS Key, `.env`, `.npmrc`, `.ssh`, hardcoded secret.
-3. **Persistence & Backdoor**
+5. **Persistence & Backdoor**
+
    Membuat direktori tersembunyi dan skrip cron untuk persistensi.
-4. **Supply Chain Attack**
+7. **Supply Chain Attack**
+
    Menyuntik kode berbahaya ke `src/index.js`.
-5. **Advanced Persistent Threat**
+9. **Advanced Persistent Threat**
+
    Mengirim hasil payload ke server eksternal (exfiltration).
 
 ---
@@ -91,7 +96,7 @@ Penting:
 * Gunakan `.gitignore` untuk memastikan file ini tidak bocor.
 * Hanya gunakan saat development/testing lokal.
 
----
+<!-- ---
 
 ## ✅ Checklist Simulasi Lab
 
@@ -107,7 +112,7 @@ Penting:
 | 🔲 Terapkan secrets hanya via GitHub Secrets                           |        |
 | 🔲 Simulasikan review PR oleh maintainer sebelum merge                 |        |
 | 🔲 Implementasikan approval branch protection untuk `main`             |        |
-
+-->
 ---
 
 ## 🧠 Pembelajaran Utama
@@ -118,7 +123,7 @@ Penting:
 * Minimal permissions = prinsip `least privilege`.
 * Pisahkan `build`, `scan`, `deploy` = harden pipeline.
 
----
+<!-- ---
 
 ## 🛠️ Tools Terkait (opsional)
 
@@ -126,7 +131,7 @@ Penting:
 * `actions/upload-artifact`: simpan hasil build
 * `dotenv`: untuk handle .env lokal (jangan di CI!)
 * `act`: jalankan GitHub Actions secara lokal
-
+-->
 ---
 
 ## 📌 Referensi
