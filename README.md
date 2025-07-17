@@ -132,7 +132,7 @@ Penting:
 ## 📌 Referensi
 
 * [GitHub Actions Security Best Practices](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
-* [OWASP Top 10 CI/CD Security Risks](https://owasp.org/www-project-cicd-security/)
+* [OWASP Top 10 CI/CD Security Risks](https://cheatsheetseries.owasp.org/cheatsheets/CI_CD_Security_Cheat_Sheet.html)
 * [Secure Workflows using Environment Secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
 
 ---
