@@ -75,14 +75,14 @@ Workflow ini hanya berjalan untuk *memeriksa* PR (tidak menjalankan build/deploy
 
 ---
 
-## 🧺 .env.example
+## 🧺 .env
 
 Contoh isi file `.env` **(tidak disertakan ke GitHub)**:
 
 ```env
 AWS_ACCESS_KEY_ID=your_production_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
-NODE_ENV=production
+API_TOKEN=your_token
 ```
 
 Penting:
