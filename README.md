@@ -96,25 +96,6 @@ Penting:
 * Gunakan `.gitignore` untuk memastikan file ini tidak bocor.
 * Hanya gunakan saat development/testing lokal.
 
-<!-- ---
-
-## ✅ Checklist Simulasi Lab
-
-| Langkah                                                                | Status |
-| ---------------------------------------------------------------------- | ------ |
-| 🔲 Fork repositori ini ke akun pribadi                                 |        |
-| 🔲 Pastikan workflow `malicious-pr.yml` **tidak aktif otomatis**       |        |
-| 🔲 Simulasikan pull request dari attacker branch                       |        |
-| 🔲 Review output tiap tahap (recon, creds, backdoor, injection, exfil) |        |
-| 🔲 Bandingkan dengan secure workflow (`secure-deploy.yml`)             |        |
-| 🔲 Cek log PR scan dari `pr-scan.yml`                                  |        |
-| 🔲 Pastikan tidak ada hardcoded secret di repo                         |        |
-| 🔲 Terapkan secrets hanya via GitHub Secrets                           |        |
-| 🔲 Simulasikan review PR oleh maintainer sebelum merge                 |        |
-| 🔲 Implementasikan approval branch protection untuk `main`             |        |
--->
----
-
 ## Pembelajaran Utama
 
 * Serangan supply chain bisa masuk lewat PR jika pipeline tidak aman.
