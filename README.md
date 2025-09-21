@@ -1,10 +1,10 @@
-# 🛡️ CI/CD Security Lab: Simulasi Malicious Pull Request Injection
+# CI/CD Security Lab: Simulasi Malicious Pull Request Injection
 
 Repository ini adalah lab hands-on untuk memahami bagaimana **pull request berbahaya (malicious PR)** dapat mengeksploitasi pipeline CI/CD yang tidak aman. Skenario disusun seperti serangan *APT-style* dengan 5 tahap: recon, credential theft, persistence, supply chain injection, dan exfiltration. Pada repository juga terdapat contoh perbandingan antara pipeline workflow yang aman dan tidak aman. 
 
 ---
 
-## 📁 Struktur Direktori
+## Struktur Direktori
 
 ```bash
 .
@@ -24,7 +24,7 @@ Repository ini adalah lab hands-on untuk memahami bagaimana **pull request berba
 
 ---
 
-## 🔥 malicious-pr.yml — Simulasi Serangan APT
+## malicious-pr.yml — Simulasi Serangan APT
 
 Workflow ini otomatis jalan saat ada pull request ke `main`. Berisi 5 tahap serangan:
 
@@ -46,7 +46,7 @@ Workflow ini otomatis jalan saat ada pull request ke `main`. Berisi 5 tahap sera
 
 ---
 
-## ✅ secure-deploy.yml — Pipeline Aman
+## secure-deploy.yml — Pipeline Aman
 
 Praktik terbaik di pipeline ini:
 
@@ -58,7 +58,7 @@ Praktik terbaik di pipeline ini:
 
 ---
 
-## 🚨 insecure-deploy.yml — Pipeline Tidak Aman
+## insecure-deploy.yml — Pipeline Tidak Aman
 
 Contoh pipeline yang **rentan**:
 
@@ -69,7 +69,7 @@ Contoh pipeline yang **rentan**:
 
 ---
 
-## 🔐 pr-scan.yml — PR Workflow Aman
+## pr-scan.yml — PR Workflow Aman
 
 Workflow ini hanya berjalan untuk *memeriksa* PR (tidak menjalankan build/deploy):
 
@@ -80,7 +80,7 @@ Workflow ini hanya berjalan untuk *memeriksa* PR (tidak menjalankan build/deploy
 
 ---
 
-## 🧺 .env
+## .env
 
 Contoh isi file `.env` **(tidak disertakan ke GitHub)**:
 
@@ -115,7 +115,7 @@ Penting:
 -->
 ---
 
-## 🧠 Pembelajaran Utama
+## Pembelajaran Utama
 
 * Serangan supply chain bisa masuk lewat PR jika pipeline tidak aman.
 * Rahasia (secrets) harus disimpan di tempat aman (GitHub Secrets, HSM).
@@ -123,18 +123,9 @@ Penting:
 * Minimal permissions = prinsip `least privilege`.
 * Pisahkan `build`, `scan`, `deploy` = harden pipeline.
 
-<!-- ---
-
-## 🛠️ Tools Terkait (opsional)
-
-* `CodeQL`: analisis statis PR
-* `actions/upload-artifact`: simpan hasil build
-* `dotenv`: untuk handle .env lokal (jangan di CI!)
-* `act`: jalankan GitHub Actions secara lokal
--->
 ---
 
-## 📌 Referensi
+## Referensi
 
 * [GitHub Actions Security Best Practices](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
 * [OWASP Top 10 CI/CD Security Risks](https://cheatsheetseries.owasp.org/cheatsheets/CI_CD_Security_Cheat_Sheet.html)
@@ -142,4 +133,4 @@ Penting:
 
 ---
 
-Created by [@arasydafa](https://github.com/arasydafa) — for educational purposes only 🧪🛡️
+Created by [@arasydafa](https://github.com/arasydafa) — for educational purposes only
