@@ -1,4 +1,4 @@
-name: 🚨 Insecure Deploy App
+name: Insecure Deploy App
 
 on:
   push:
@@ -9,33 +9,62 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_ACCESS_KEY_ID: abcd1234
-      AWS_SECRET_ACCESS_KEY: efgh5678
+      AWS_ACCESS_KEY_ID: abcd1234  # !Hardcoded credentials are insecure!
+      AWS_SECRET_ACCESS_KEY: efgh5678  # !Use GitHub Secrets instead!
+      S3_BUCKET_URL: s3://my-super-secret-bucket  # !Exposed bucket URL!
 
     steps:
-      - name: 🧾 Checkout Repo
+      - name: Checkout Repo
         uses: actions/checkout@v3
 
-      - name: 🧪 Setup Node (latest)
+      - name: Create Sensitive Config File
+        run: |
+          echo "DB_PASSWORD=supersecret123" > .env
+          echo "API_KEY=apikey-xyz789" >> .env
+          cat .env
+        # !WARNING: Creating and exposing sensitive config files is dangerous!
+
+      - name: Setup Node (latest)
         uses: actions/setup-node@v4
         with:
           node-version: 'latest'
 
-      - name: 📦 Install Dependencies
-        run: npm install
+      - name: Simulate Untrusted Source Download
+        run: |
+          echo "Simulating download of package from untrusted source..."
+          echo "#!/bin/bash" > fake-package.sh
+          echo "echo 'Running simulated untrusted script'" >> fake-package.sh
+          chmod +x fake-package.sh
+          ./fake-package.sh
+        # !WARNING: Executing scripts from untrusted sources is risky!
 
-      - name: 🏗️ Build App
-        run: npm run build
+      - name: Install Dependencies
+        run: npm install || echo "Dependency installation completed (simulated success)"
+        # !WARNING: No verification of dependency integrity!
 
-      - name: ☁️ Upload Artifact (no signing)
+      - name: Build App
+        run: npm run build || echo "Build completed (simulated success)"
+        # !WARNING: Ignoring build errors can hide critical issues!
+
+      - name: Log Sensitive Data
+        run: |
+          echo "Database Password: supersecretpassword123"
+          echo "API Key: apikey-xyz789"
+          echo "AWS Access Key: $AWS_ACCESS_KEY_ID"
+          echo "AWS Secret: $AWS_SECRET_ACCESS_KEY"
+        # !WARNING: Logging sensitive data exposes it in CI logs!
+
+      - name: Upload Artifact (no signing)
         run: |
           echo "Simulated upload to S3"
-          ls dist
+          ls -la dist || echo "No dist folder, simulating upload"
+        # !WARNING: No integrity checks or signing for uploaded artifacts!
 
-      - name: 🚀 Simulated Deploy to S3
+      - name: Simulated Deploy to S3
         run: |
-          echo "Deploying dist/ to s3://fake-bucket/"
-          echo "Simulated AWS Access Key: $AWS_ACCESS_KEY_ID"
-          echo "Simulated AWS Secret: $AWS_SECRET_ACCESS_KEY"
+          echo "Deploying dist/ to $S3_BUCKET_URL"
+          echo "Simulated deployment complete"
+        # !WARNING: No authentication or encryption for deployment!
 
-    permissions: write-all
+    permissions: write-all  
+    # !WARNING: Overly permissive access!
