@@ -73,7 +73,7 @@ Contoh pipeline yang **rentan**:
 
 Workflow ini hanya berjalan untuk *memeriksa* PR (tidak menjalankan build/deploy):
 
-* Membaca metadata PR (author, judul)
+* Membaca metadata PR (author, title)
 * Menggunakan `codeql` untuk analisa kode PR
 * Tidak punya akses ke secrets atau environment sensitif
 * Ditujukan sebagai pertahanan terhadap supply chain attack via PR
@@ -99,7 +99,7 @@ Penting:
 ## Pembelajaran Utama
 
 * Serangan supply chain bisa masuk lewat PR jika pipeline tidak aman
-* Rahasia (secrets) harus disimpan di tempat aman (GitHub Secrets, HSM)
+* *secrets* harus disimpan di tempat aman (GitHub Secrets, HSM)
 * Jangan biarkan PR otomatis menjalankan kode tanpa review
 * Minimal permissions = prinsip `least privilege`
 * Pisahkan `build`, `scan`, `deploy` = harden pipeline
