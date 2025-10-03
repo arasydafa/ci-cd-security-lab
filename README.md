@@ -1,6 +1,6 @@
 # CI/CD Security Lab: Simulasi Malicious Pull Request Injection
 
-Repository ini adalah lab hands-on untuk memahami bagaimana **malicious PR** dapat mengeksploitasi pipeline CI/CD yang tidak aman. Skenario disusun seperti serangan *APT style* dengan 5 tahap: recon, credential theft, persistence, supply chain injection, dan exfiltration. Pada repository juga terdapat contoh perbandingan antara pipeline workflow yang aman dan tidak aman
+Repository ini adalah lab hands-on untuk memahami bagaimana **malicious PR** dapat mengeksploitasi insecure CI/CD pipeline. Skenario disusun seperti serangan *APT style* dengan 5 tahap: recon, credential theft, persistence, supply chain injection, dan exfiltration. Pada repository juga terdapat contoh perbandingan antara pipeline workflow yang aman dan tidak aman
 
 ---
 
