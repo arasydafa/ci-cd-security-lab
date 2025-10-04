@@ -8,12 +8,12 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: 🛡️ Scan PR changes
+      - name: Scan PR changes
         uses: github/codeql-action/init@v2
         with:
           languages: javascript
 
-      - name: 📜 Log PR metadata
+      - name: Log PR metadata
         run: |
           echo "Author: ${{ github.actor }}"
           echo "Title: ${{ github.event.pull_request.title }}"
