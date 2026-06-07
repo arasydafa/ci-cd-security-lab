@@ -80,12 +80,20 @@ jobs:
         # Re-hashes files and compares against stored checksums
 
       - name: Configure AWS Credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::123456789012:role/GitHubActionsRole
-          aws-region: us-east-1
-        # OIDC provides temporary credentials — never store static keys
-        # (Simulation only — will fail without real AWS account)
+        run: |
+          echo "Simulating OIDC-based AWS authentication..."
+          echo "Requesting OIDC token from GitHub..."
+          echo "Assuming IAM role: arn:aws:iam::123456789012:role/GitHubActionsRole"
+          echo "Temporary credentials obtained successfully (simulated)"
+        # In production, replace this simulation with:
+        #   uses: aws-actions/configure-aws-credentials@v4
+        #   with:
+        #     role-to-assume: arn:aws:iam::123456789012:role/GitHubActionsRole
+        #     aws-region: us-east-1
+        # OIDC requires an identity provider in AWS IAM:
+        #   Provider URL: https://token.actions.githubusercontent.com
+        #   Audience:     sts.amazonaws.com
+        # The key point: no static keys stored — credentials are temporary.
 
       - name: Deploy to S3
         run: |
