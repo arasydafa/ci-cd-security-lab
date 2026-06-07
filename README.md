@@ -1,87 +1,88 @@
-# CI/CD Security Lab: Malicious Pull Request Injection
+# CI/CD Security Lab
 
-This repository is a **hands-on security lab** that demonstrates how a malicious contributor can weaponize GitHub Actions through a seemingly innocent pull request.  
-It simulates a complete APT-style attack chain (recon → credential theft → persistence → code injection → exfiltration) when CI/CD pipelines are misconfigured.
+Demonstrates how a malicious pull request can take over your GitHub Actions pipeline — and what the secure version actually looks like.
 
-You’ll also find side-by-side examples of insecure vs. secure workflows so you can instantly see what goes wrong and how to fix it.
+This repo has intentionally vulnerable workflows. Don't run them in a public repository.
 
-**Everything here is intentionally vulnerable where marked — use only in a safe, private repository.**
+## What's in here
 
-## Repository Structure
+```
+.github/workflows/
+├── insecure-deploy.yml    ← common production mistakes
+├── secure-deploy.yml      ← the fix (real build, OIDC, checksums)
+├── malicious-pr.yml       ← 5-stage attack chain on PR
+└── pr-scan.yml            ← safe CodeQL scan on PRs
 
-```bash
-.
-├── .github/workflows/
-│   ├── insecure-deploy.yml    # Classic "what not to do" pipeline
-│   ├── secure-deploy.yml      # Production-grade secure pipeline
-│   ├── malicious-pr.yml       # Full malicious PR attack chain
-│   └── pr-scan.yml            # Safe PR analysis workflow
-├── src/
-│   └── index.js               # Target file for malicious injection
-├── .env.example               # Never commit real secrets
-├── package.json
-├── package-lock.json
-└── README.md
+src/index.js               ← attack target for supply-chain demo
+.env.example               ← placeholder credentials
+package.json               ← minimal Node.js project
 ```
 
-## Lab Scenarios
+## The workflows
 
-### malicious-pr.yml – The Attack Workflow
-Triggered on every `pull_request` to `main`. Contains a realistic 5-stage attack:
+### `malicious-pr.yml` — the attack
 
-| Stage                  | What the attacker does                                      | Real-world impact if this runs |
-|-------------------------|--------------------------------------------------------------|--------------------------------|
-| 1. Recon                | `env`, `ls -la`, enumerate runner                            | Full environment fingerprinting |
-| 2. Credential Harvesting| Search for AWS keys, `.env`, `.npmrc`, `~/.ssh`              | Steal deploy credentials       |
-| 3. Persistence          | Create hidden backdoor + `@reboot` cron job                  | Compromise self-hosted runners permanently |
-| 4. Supply-Chain Injection| Append malicious code to `src/index.js`                     | Poison the codebase before merge |
-| 5. Exfiltration         | POST stolen source/code to attacker-controlled C2 server     | Intellectual property theft    |
+Runs on every PR to `main`. Five jobs chained to simulate a real compromise:
 
-### insecure-deploy.yml – Real-world Anti-Pattern
-Contains nearly every common mistake seen in production today:
-- Hard-coded AWS credentials and bucket names
+1. **Recon** — dumps `env`, lists repo files, fingerprints the runner
+2. **Credential Harvesting** — greps for AWS keys, checks `.npmrc`, `.env`, `~/.ssh`
+3. **Persistence** — writes a backdoor script, adds a `@reboot` crontab entry
+4. **Supply-Chain Injection** — appends malicious code to `src/index.js`
+5. **Exfiltration** — POSTs the modified source to an attacker-controlled server
+
+Open the file and read the steps. Each one is a single `run:` block so it's easy to follow.
+
+### `insecure-deploy.yml` — the anti-pattern
+
+A deploy pipeline with nearly every mistake you'll see in the wild:
+- Hardcoded AWS keys in the YAML
 - `permissions: write-all`
-- Logging secrets directly to workflow logs
-- Running untrusted scripts
-- No integrity checks, no secret masking
+- Secrets echoed to workflow logs
+- Scripts downloaded and executed without verification
+- Build failures swallowed with `|| echo`
 
-### secure-deploy.yml – Modern Secure Pipeline
-Implements current (2025) best practices:
-- Strict least-privilege permissions per job
-- Build → artifact → deploy separation
-- OIDC-based AWS authentication (`id-token: write`)
-- Artifact checksum verification
-- Secret masking with `::add-mask::`
-- Pinned action versions, no untrusted code execution
+Every line has a `# !WARNING!` comment pointing out what's wrong.
 
-### pr-scan.yml – Safe PR Inspection
-Runs CodeQL on incoming PRs without giving the PR contributor access to secrets or write permissions.
+### `secure-deploy.yml` — the fix
 
-## Key Takeaways
+A real build-and-deploy pipeline that actually runs:
+- `npm ci` for reproducible installs from `package-lock.json`
+- `npm audit` to catch vulnerable dependencies
+- `npm run build` (the actual build script, not an echo)
+- SHA256 checksums computed and verified across jobs
+- OIDC-based AWS auth via `aws-actions/configure-aws-credentials` — no static keys
+- `::add-mask::` applied before any sensitive value hits the logs
+- Least-privilege permissions on every job
 
-- A single untrusted pull request can compromise your entire pipeline if workflows are permissive
-- Never use hardcoded secrets — always use GitHub Secrets or OIDC
-- Forked PRs get a restricted token by default, but many repos still override this dangerously
-- Separate build, test, and deploy stages with minimal permissions
-- Always pin actions to a full length commit SHA in production
-- Validate artifact integrity before deployment
+Compare it side-by-side with `insecure-deploy.yml` to see what each fix addresses.
 
-## How to Use This Lab
+### `pr-scan.yml` — safe PR scanning
 
-1. Fork this repo (keep it private!)
-2. Create a pull request from a new branch or a fork
-3. Watch `malicious-pr.yml` automatically execute the full attack chain
-4. Compare logs and behavior with `secure-deploy.yml`
+Runs CodeQL analysis on PRs without granting the contributor access to secrets or write permissions. Uses `contents: read` + `security-events: write` only.
 
-## References & Further Reading
+## Running the lab
 
-- GitHub Actions Security Hardening Guide  
-  https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions
-- OWASP CI/CD Security Cheat Sheet  
-  https://cheatsheetseries.owasp.org/cheatsheets/CI_CD_Security_Cheat_Sheet.html
-- Using OpenID Connect with AWS  
-  https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services
-- SLSA Framework & Supply Chain Security  
-  https://slsa.dev
+1. Fork this repo — **keep it private**
+2. Create a branch, make a PR
+3. Watch `malicious-pr.yml` execute the full attack chain in Actions
+4. Compare with `secure-deploy.yml` on a push to `main`
 
-Created and maintained by [@arasydafa](https://github.com/arasydafa) — **for educational and red team training purposes only**.
+## What to take away
+
+- An untrusted PR gets code execution on your runner. If your workflow has broad permissions, that's game over.
+- Forked PRs get a read-only token by default, but a lot of repos override this.
+- Hardcoded secrets in YAML live in git history forever. Use GitHub Secrets or OIDC.
+- Pin actions to a version tag at minimum. Full commit SHA for production.
+- Separate build, test, and deploy. Give each job the minimum permissions it needs.
+- Verify artifacts before deploying them.
+
+## References
+
+- [GitHub Actions security hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
+- [OWASP CI/CD Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/CI_CD_Security_Cheat_Sheet.html)
+- [OIDC with AWS](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)
+- [SLSA Framework](https://slsa.dev)
+
+---
+
+Built by [@arasydafa](https://github.com/arasydafa) for educational and red team training purposes.

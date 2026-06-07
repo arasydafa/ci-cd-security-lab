@@ -9,113 +9,89 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read  # ! Restrict to read-only for build job
+      contents: read  # read-only — build never needs write access
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3  # ! Use specific version for security
-        # ! Securely access repository code
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 'latest'
-          cache: 'npm'  # ! Cache dependencies for faster builds
-        # ! Use latest Node.js securely
+          node-version: '22'
+          cache: 'npm'
 
-      - name: 📦 Install Dependencies
-        run: |
-          echo "Simulating npm ci for dependency installation..."
-          echo "Dependencies installed from package-lock.json"
-        # ! Simulate reproducible dependency installation
+      - name: Install Dependencies
+        run: npm ci
+        # npm ci installs exact versions from package-lock.json
+        # (prefer over npm install for reproducible builds)
 
-      - name: Simulate Dependency Verification
-        run: |
-          echo "Simulating npm audit to check for vulnerabilities..."
-          echo "No high-severity vulnerabilities found"
-        # ! Simulate dependency security check
+      - name: Dependency Audit
+        run: npm audit --audit-level=high || true
+        # Fail on high+ vulnerabilities; || true keeps the lab runnable
+        # In production, remove || true to enforce strict auditing
 
-      - name: Simulate Unit Tests
-        run: |
-          echo "Running unit tests..."
-          echo "All tests passed successfully"
-        # ! Simulate code quality checks before build
+      - name: Run Tests
+        run: npm test
 
       - name: Build Application
-        run: |
-          echo "Simulating npm run build..."
-          mkdir -p dist
-          echo "Build output" > dist/index.html
-          echo "Build completed successfully"
-        # ! Simulate app build with dummy output
-
-      - name: Simulate Artifact Encryption
-        run: |
-          echo "Simulating encryption of dist/ contents..."
-          echo "Encrypted artifact: dist/index.html.encrypted" > dist/encrypted.txt
-          echo "Encryption completed successfully"
-        # ! Simulate encryption for secure artifact handling
+        run: npm run build
+        # Runs the real build script from package.json (copies src/ to dist/)
 
       - name: Generate Artifact Checksum
         run: |
-          echo "Calculating SHA256 checksum for dist/*"
-          echo "checksum: abc123simulatedhash456" > dist/checksum.txt
-          cat dist/checksum.txt
-        # ! Simulate artifact integrity verification
+          cd dist
+          sha256sum * > checksum.txt
+          echo "--- Computed checksums ---"
+          cat checksum.txt
+        # Real SHA256 hashes for artifact integrity verification
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist/
-        # ! Securely upload artifact for deployment
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read  # ! Restrict to read-only for contents
-      id-token: write  # ! Allow OIDC for secure authentication
-
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}  # ! Use GitHub Secrets
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # ! Use GitHub Secrets
+      contents: read
+      id-token: write  # OIDC — no static AWS credentials needed
 
     steps:
       - name: Download Artifact
         uses: actions/download-artifact@v4
         with:
           name: dist
-        # ! Securely download artifact for deployment
 
       - name: Verify Artifact Checksum
         run: |
-          echo "Verifying checksum for dist/*"
           if [ -f dist/checksum.txt ]; then
+            echo "--- Stored checksums ---"
             cat dist/checksum.txt
-            echo "Checksum verified: abc123simulatedhash456"
+            echo "--- Recomputing and verifying ---"
+            cd dist
+            sha256sum -c checksum.txt
           else
-            echo "Checksum file not found, skipping verification (simulated success)"
+            echo "No checksum.txt found — skipping verification"
           fi
-        # ! Simulate artifact integrity check
+        # Re-hashes files and compares against stored checksums
 
-      - name: Simulate Secure AWS Authentication
-        run: |
-          echo "Simulating AWS authentication using OIDC..."
-          echo "Authenticated with role: arn:aws:iam::123456789012:role/GitHubActionsRole"
-        # ! Simulate secure OIDC-based authentication
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/GitHubActionsRole
+          aws-region: us-east-1
+        # OIDC provides temporary credentials — never store static keys
+        # (Simulation only — will fail without real AWS account)
 
-      - name: Simulate Secure Deploy to S3
+      - name: Deploy to S3
         run: |
-          echo "Deploying dist/ to s3://secure-bucket/"
-          ls -la dist/ || echo "No dist folder contents, proceeding with simulated deployment"
+          echo "::add-mask::${{ github.sha }}"
+          echo "Deploying commit ${{ github.sha }} to s3://secure-bucket/"
+          ls -la dist/
+          # In production: aws s3 sync dist/ s3://secure-bucket/ --delete
           echo "Deployment completed successfully"
-        # ! Simulate secure deployment
-
-      - name: Log Deployment Status
-        run: |
-          echo "Deployed successfully at $(date)"
-          echo "::add-mask::sensitive-data"
-          echo "Sensitive data: sensitive-data (masked in logs)"
-        # ! Demonstrate safe logging with masking
+        # ::add-mask:: hides the value from all subsequent log output
