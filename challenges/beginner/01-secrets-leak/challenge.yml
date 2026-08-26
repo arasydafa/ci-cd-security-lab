@@ -1,0 +1,19 @@
+id: secrets-leak
+title: "Don't Leak Your Secrets"
+level: beginner
+topic: github-actions
+category: security
+estimated_time: 10m
+points: 100
+description: |
+  This workflow accidentally leaks AWS credentials in the build logs.
+  Find the secrets exposure and fix it before an attacker can harvest your keys.
+tags: [secrets, aws, logging]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ["AKIA", "SECRET_KEY", "echo ${{ secrets"]
+      step: "Build"
+scoring:
+  hints_used_penalty: 25
+  time_bonus: 50

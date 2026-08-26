@@ -1,22 +1,31 @@
 {
   "name": "ci-cd-security-lab",
-  "version": "1.0.0",
-  "description": "CI/CD Security Lab - intentionally vulnerable workflows for teaching pipeline security",
-  "main": "index.js",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Interactive CI/CD Security Learning Lab - simulate, learn, and master pipeline security",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "test": "echo \"No tests yet\" && exit 0",
-    "build": "echo 'building...' && node -e \"require('fs').cpSync('src','dist',{recursive:true})\"",
-    "start": "node dist/index.js"
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "sim": "node packages/cli/dist/index.js",
+    "serve": "node packages/server/dist/index.js",
+    "web": "npm run dev --workspace=packages/web"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/arasydafa/ci-cd-security-lab.git"
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.5.0"
   },
-  "keywords": ["ci-cd", "security", "lab", "github-actions"],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/arasydafa/ci-cd-security-lab/issues"
+  "engines": {
+    "node": ">=18.0.0"
   },
-  "homepage": "https://github.com/arasydafa/ci-cd-security-lab#readme"
+  "license": "MIT",
+  "allowScripts": {
+    "better-sqlite3@11.10.0": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.21.5": true
+  }
 }

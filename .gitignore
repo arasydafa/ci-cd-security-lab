@@ -3,9 +3,11 @@ node_modules/
 
 # Build output
 dist/
+*.tsbuildinfo
 
 # Environment variables
 .env
+.env.local
 
 # Logs
 *.log
@@ -18,3 +20,9 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Database
+*.db
+
+# Turbo
+.turbo/

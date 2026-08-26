@@ -1,0 +1,18 @@
+id: error-swallowing
+title: "Don't Swallow Errors"
+level: beginner
+topic: github-actions
+category: best-practice
+estimated_time: 8m
+points: 75
+description: |
+  This workflow swallows build errors with `|| echo`. If the build fails,
+  the pipeline continues and may deploy broken code. Let failures propagate.
+tags: [reliability, error-handling]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ["|| echo"]
+scoring:
+  hints_used_penalty: 25
+  time_bonus: 30

@@ -1,0 +1,18 @@
+id: supply-chain-attack
+title: "Supply Chain Defense"
+level: intermediate
+topic: github-actions
+category: security
+estimated_time: 20m
+points: 200
+description: |
+  A malicious PR modifies this workflow to exfiltrate secrets and inject
+  backdoors. Identify all stages of the attack chain and secure the pipeline.
+tags: [supply-chain, attacks, defense-in-depth]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ["echo ${{ secrets", "curl -X POST", ">> src/"]
+scoring:
+  hints_used_penalty: 50
+  time_bonus: 100

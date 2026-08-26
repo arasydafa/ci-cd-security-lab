@@ -1,0 +1,19 @@
+id: unsafe-deps
+title: "Trust No One"
+level: beginner
+topic: github-actions
+category: security
+estimated_time: 10m
+points: 100
+description: |
+  This workflow pins actions by mutable tag (v3) instead of commit SHA.
+  A compromised action could be updated to inject malicious code.
+  Pin actions to full commit SHAs for supply chain safety.
+tags: [supply-chain, actions, pinning]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ["uses: actions/checkout@v3", "uses: actions/setup-node@v3"]
+scoring:
+  hints_used_penalty: 25
+  time_bonus: 50

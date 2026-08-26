@@ -1,0 +1,19 @@
+id: script-injection
+title: "Script Injection Defense"
+level: intermediate
+topic: github-actions
+category: security
+estimated_time: 15m
+points: 150
+description: |
+  This workflow is vulnerable to script injection via GitHub context
+  variables. An attacker can craft PR titles or issue bodies that
+  execute arbitrary code. Sanitize all user-controlled inputs.
+tags: [injection, github-context, script-execution]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ["${{ github.event.pull_request.title }}", "${{ github.event.issue.body }}"]
+scoring:
+  hints_used_penalty: 30
+  time_bonus: 75

@@ -1,0 +1,17 @@
+name: Setup and Build
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install custom tools
+        run: curl -sSL https://example.com/setup.sh | bash
+
+      - name: Build
+        run: npm run build

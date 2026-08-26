@@ -1,88 +1,113 @@
 # CI/CD Security Lab
 
-Demonstrates how a malicious pull request can take over your GitHub Actions pipeline — and what the secure version actually looks like.
+An interactive learning platform for CI/CD security. Simulate vulnerable GitHub Actions workflows, identify security issues, and learn to build secure pipelines.
 
-This repo has intentionally vulnerable workflows. Don't run them in a public repository.
+## What's Inside
 
-## What's in here
+### Simulation Engine
+- Parses real GitHub Actions YAML syntax
+- Executes steps locally with sandboxed shell execution
+- Detects security vulnerabilities (secrets leaks, supply chain risks, permissions issues)
+- Validates user fixes against challenge requirements
+
+### 9 Hands-On Challenges
+
+**Beginner (5)**
+| Challenge | Concept | Points |
+|-----------|---------|--------|
+| Don't Leak Your Secrets | Hardcoded credentials in workflow | 100 |
+| Too Much Power | Overly broad permissions | 75 |
+| Trust No One | Unpinned action versions | 100 |
+| Don't Swallow Errors | Silenced build failures | 75 |
+| Verify Before You Run | Unverified remote scripts | 100 |
+
+**Intermediate (4)**
+| Challenge | Concept | Points |
+|-----------|---------|--------|
+| Supply Chain Defense | Multi-stage attack detection | 200 |
+| Artifact Integrity | Missing checksums | 150 |
+| Script Injection Defense | GitHub context injection | 150 |
+| OIDC Trust Done Right | AWS credential management | 150 |
+
+### Two Interfaces
+
+**CLI** — Fast, terminal-native workflow:
+```bash
+cicd-lab list                    # List all challenges
+cicd-lab start secrets-leak      # View challenge details
+cicd-lab run -c secrets-leak     # Run simulation
+cicd-lab hint secrets-leak 1     # Get a hint
+```
+
+**Web UI** — Browser-based with rich visualization:
+```bash
+npm run web        # Start dev server on :5173
+npm run serve      # Start API server on :3001
+```
+
+## Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Build all packages
+npm run build
+
+# Run the CLI
+npm run sim -- list
+npm run sim -- start secrets-leak
+
+# Or start the web UI
+npm run web
+```
+
+## Project Structure
 
 ```
-.github/workflows/
-├── insecure-deploy.yml    ← common production mistakes
-├── secure-deploy.yml      ← the fix (real build, OIDC, checksums)
-├── malicious-pr.yml       ← 5-stage attack chain on PR
-└── pr-scan.yml            ← safe CodeQL scan on PRs
-
-src/index.js               ← attack target for supply-chain demo
-.env.example               ← placeholder credentials
-package.json               ← minimal Node.js project
+ci-cd-security-lab/
+├── packages/
+│   ├── shared/        # TypeScript types shared across packages
+│   ├── simulator/     # Core simulation engine
+│   ├── cli/           # Command-line interface
+│   ├── server/        # REST API server
+│   └── web/           # React web interface
+├── challenges/        # Challenge definitions (YAML + Markdown)
+│   ├── beginner/
+│   └── intermediate/
+└── .github/workflows/ # Demo workflows (the original lab content)
 ```
 
-## The workflows
+## Tech Stack
 
-### `malicious-pr.yml` — the attack
+| Layer | Technology |
+|-------|-----------|
+| Runtime | Node.js 18+ |
+| Language | TypeScript |
+| Monorepo | Turborepo |
+| Simulation | js-yaml, child_process |
+| CLI | Commander.js, Chalk |
+| API | Express.js, Zod |
+| Web | React 18, Vite, Tailwind CSS |
+| Database | SQLite (Phase 2) |
 
-Runs on every PR to `main`. Five jobs chained to simulate a real compromise:
+## Development
 
-1. **Recon** — dumps `env`, lists repo files, fingerprints the runner
-2. **Credential Harvesting** — greps for AWS keys, checks `.npmrc`, `.env`, `~/.ssh`
-3. **Persistence** — writes a backdoor script, adds a `@reboot` crontab entry
-4. **Supply-Chain Injection** — appends malicious code to `src/index.js`
-5. **Exfiltration** — POSTs the modified source to an attacker-controlled server
+```bash
+# Install dependencies
+npm install
 
-Open the file and read the steps. Each one is a single `run:` block so it's easy to follow.
+# Build everything
+npm run build
 
-### `insecure-deploy.yml` — the anti-pattern
+# Run tests
+npm run test
 
-A deploy pipeline with nearly every mistake you'll see in the wild:
-- Hardcoded AWS keys in the YAML
-- `permissions: write-all`
-- Secrets echoed to workflow logs
-- Scripts downloaded and executed without verification
-- Build failures swallowed with `|| echo`
+# Start development
+npm run web        # Web UI dev server
+npm run serve      # API server
+```
 
-Every line has a `# !WARNING!` comment pointing out what's wrong.
+## License
 
-### `secure-deploy.yml` — the fix
-
-A real build-and-deploy pipeline that actually runs:
-- `npm ci` for reproducible installs from `package-lock.json`
-- `npm audit` to catch vulnerable dependencies
-- `npm run build` (the actual build script, not an echo)
-- SHA256 checksums computed and verified across jobs
-- OIDC-based AWS auth via `aws-actions/configure-aws-credentials` — no static keys
-- `::add-mask::` applied before any sensitive value hits the logs
-- Least-privilege permissions on every job
-
-Compare it side-by-side with `insecure-deploy.yml` to see what each fix addresses.
-
-### `pr-scan.yml` — safe PR scanning
-
-Runs CodeQL analysis on PRs without granting the contributor access to secrets or write permissions. Uses `contents: read` + `security-events: write` only.
-
-## Running the lab
-
-1. Fork this repo — **keep it private**
-2. Create a branch, make a PR
-3. Watch `malicious-pr.yml` execute the full attack chain in Actions
-4. Compare with `secure-deploy.yml` on a push to `main`
-
-## What to take away
-
-- An untrusted PR gets code execution on your runner. If your workflow has broad permissions, that's game over.
-- Forked PRs get a read-only token by default, but a lot of repos override this.
-- Hardcoded secrets in YAML live in git history forever. Use GitHub Secrets or OIDC.
-- Pin actions to a version tag at minimum. Full commit SHA for production.
-- Separate build, test, and deploy. Give each job the minimum permissions it needs.
-- Verify artifacts before deploying them.
-
-## References
-
-- [GitHub Actions security hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
-- [OWASP CI/CD Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/CI_CD_Security_Cheat_Sheet.html)
-- [OIDC with AWS](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)
-- [SLSA Framework](https://slsa.dev)
-
----
-
-Built by [@arasydafa](https://github.com/arasydafa) for educational and red team training purposes.
+MIT

@@ -1,0 +1,23 @@
+name: Setup and Build
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download setup script
+        run: curl -sSL -o setup.sh https://example.com/setup.sh
+
+      - name: Verify checksum
+        run: echo "abc123def456  setup.sh" | sha256sum -c -
+
+      - name: Install custom tools
+        run: bash setup.sh
+
+      - name: Build
+        run: npm run build

@@ -1,0 +1,19 @@
+id: permissions-overkill
+title: "Too Much Power"
+level: beginner
+topic: github-actions
+category: security
+estimated_time: 8m
+points: 75
+description: |
+  This workflow uses overly broad permissions. A compromised step could
+  modify code, create releases, or access other repository resources.
+  Apply the principle of least privilege.
+tags: [permissions, least-privilege]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ["write-all"]
+scoring:
+  hints_used_penalty: 25
+  time_bonus: 30

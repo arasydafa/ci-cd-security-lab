@@ -1,0 +1,28 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      PR_BODY: ${{ github.event.pull_request.body }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log PR title
+        run: echo "Processing PR: $PR_TITLE"
+
+      - name: Check PR description
+        run: echo "Description: $PR_BODY"
+
+      - name: Validate
+        run: echo "All checks passed for PR #$PR_NUMBER"

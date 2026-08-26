@@ -1,0 +1,20 @@
+id: oidc-misconfig
+title: "OIDC Trust Done Right"
+level: intermediate
+topic: github-actions
+category: security
+estimated_time: 15m
+points: 150
+description: |
+  This workflow uses OIDC for AWS authentication but the trust policy
+  is too broad. Any repository in your org can assume the role.
+  Lock down the OIDC trust to specific repositories and branches.
+tags: [oidc, aws, iam, trust-policy]
+validation:
+  type: workflow-check
+  expected:
+    - should_contain: ["role-to-assume"]
+    - should_not_contain: ["AKIA", "aws_access_key", "aws_secret_key"]
+scoring:
+  hints_used_penalty: 30
+  time_bonus: 75

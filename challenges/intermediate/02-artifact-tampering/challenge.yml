@@ -1,0 +1,19 @@
+id: artifact-tampering
+title: "Artifact Integrity"
+level: intermediate
+topic: github-actions
+category: security
+estimated_time: 15m
+points: 150
+description: |
+  This workflow uploads build artifacts without integrity checks.
+  An attacker could tamper with artifacts between build and deploy.
+  Add checksums to verify artifact integrity.
+tags: [artifacts, integrity, checksums]
+validation:
+  type: workflow-check
+  expected:
+    - should_contain: ["sha256sum"]
+scoring:
+  hints_used_penalty: 30
+  time_bonus: 75
