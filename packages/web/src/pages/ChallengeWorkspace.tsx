@@ -1,6 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { MarkdownRenderer } from '../components/MarkdownRenderer.js';
+import { YamlEditor } from '../components/YamlEditor.js';
+import { CodeBlock } from '../components/CodeBlock.js';
 
 interface Challenge {
   id: string;
@@ -42,18 +44,20 @@ interface SimResult {
   };
 }
 
-const severityColors: Record<string, string> = {
-  critical: 'text-red-400 bg-red-500/10',
-  high: 'text-orange-400 bg-orange-500/10',
-  medium: 'text-yellow-400 bg-yellow-500/10',
-  low: 'text-blue-400 bg-blue-500/10',
-  info: 'text-gray-400 bg-gray-500/10',
+const severityStyles: Record<string, { badge: string; border: string; bg: string }> = {
+  critical: { badge: 'bg-red-500/20 text-red-400 border border-red-500/30', border: 'border-l-red-400', bg: 'bg-red-500/5' },
+  high: { badge: 'bg-orange-500/20 text-orange-400 border border-orange-500/30', border: 'border-l-orange-400', bg: 'bg-orange-500/5' },
+  medium: { badge: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30', border: 'border-l-yellow-400', bg: 'bg-yellow-500/5' },
+  low: { badge: 'bg-blue-500/20 text-blue-400 border border-blue-500/30', border: 'border-l-blue-400', bg: 'bg-blue-500/5' },
+  info: { badge: 'bg-gray-500/20 text-gray-400 border border-gray-500/30', border: 'border-l-gray-400', bg: 'bg-gray-500/5' },
 };
 
-const statusIcons: Record<string, string> = {
-  success: '✓',
-  failure: '✗',
-  skipped: '○',
+const topicLabels: Record<string, string> = {
+  'github-actions': 'GitHub Actions',
+  docker: 'Docker',
+  kubernetes: 'Kubernetes',
+  terraform: 'Terraform',
+  monitoring: 'Monitoring',
 };
 
 export function ChallengeWorkspace() {
@@ -118,32 +122,82 @@ export function ChallengeWorkspace() {
     }
   }, [id, workflow]);
 
-  if (loading) return <div className="text-gray-400 py-8 text-center">Loading challenge...</div>;
-  if (!challenge) return <div className="text-gray-400 py-8 text-center">Challenge not found.</div>;
+  const logLines = useMemo(() => {
+    if (!result) return [];
+    return result.result.logs.map((line, i) => ({
+      key: i,
+      text: line,
+      isJob: line.startsWith('━━━'),
+      isStep: line.trimStart().startsWith('[') && line.includes('] Starting...'),
+      isStarting: line.includes('Starting...'),
+      isComplete: line.includes('Completed successfully'),
+      isFailed: line.includes('FAILED'),
+      isOutput: line.trimStart().startsWith('→'),
+    }));
+  }, [result]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="skeleton h-8 w-64" />
+        <div className="skeleton h-4 w-48" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+          <div className="skeleton h-[400px] rounded-xl" />
+          <div className="skeleton h-[400px] rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!challenge) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+        <p className="text-lg mb-4">Challenge not found</p>
+        <Link to="/challenges" className="text-green-400 hover:text-green-300 text-sm">
+          ← Back to Challenges
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <Link to="/challenges" className="text-sm text-gray-500 hover:text-gray-300 mb-2 inline-block">
-            ← Back to Challenges
+          <Link to="/challenges" className="text-sm text-gray-500 hover:text-gray-300 mb-3 inline-flex items-center gap-1 transition-colors">
+            <span>←</span> Back to Challenges
           </Link>
-          <h1 className="text-2xl font-bold">{challenge.title}</h1>
+          <h1 className="text-2xl font-bold text-white">{challenge.title}</h1>
           <div className="flex items-center gap-3 mt-2">
-            <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/20">
+            <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
+              challenge.level === 'beginner' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
+              challenge.level === 'intermediate' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' :
+              'bg-red-500/10 text-red-400 border border-red-500/20'
+            }`}>
               {challenge.level}
             </span>
-            <span className="text-sm text-gray-400">{challenge.points} points</span>
+            <span className="text-xs px-2 py-0.5 rounded bg-dark-700 text-gray-400 border border-dark-600">
+              {topicLabels[challenge.topic] || challenge.topic}
+            </span>
+            <span className="text-sm text-gray-400">{challenge.points} pts</span>
             <span className="text-sm text-gray-500">~{challenge.estimatedTime}</span>
           </div>
         </div>
         <button
           onClick={runSimulation}
           disabled={simulating}
-          className="bg-green-600 hover:bg-green-500 disabled:bg-green-600/50 text-white font-medium px-6 py-2 rounded-lg transition-colors"
+          className="bg-green-600 hover:bg-green-500 disabled:bg-green-600/50 disabled:cursor-not-allowed text-white font-medium px-6 py-2.5 rounded-lg transition-all hover:shadow-lg hover:shadow-green-500/20 shrink-0"
         >
-          {simulating ? 'Simulating...' : 'Run Simulation'}
+          {simulating ? (
+            <span className="flex items-center gap-2">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Simulating...
+            </span>
+          ) : 'Run Simulation'}
         </button>
       </div>
 
@@ -156,11 +210,16 @@ export function ChallengeWorkspace() {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-1.5 text-sm rounded-md transition-colors ${
-                  activeTab === tab ? 'bg-dark-600 text-white' : 'text-gray-400 hover:text-white'
+                className={`relative flex-1 py-2 text-sm font-medium rounded-md transition-all ${
+                  activeTab === tab
+                    ? 'bg-dark-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:text-white hover:bg-dark-700'
                 }`}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {activeTab === tab && (
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4/5 h-0.5 bg-green-400 rounded-full" />
+                )}
               </button>
             ))}
           </div>
@@ -171,34 +230,48 @@ export function ChallengeWorkspace() {
               <MarkdownRenderer>{challenge.scenario || challenge.description}</MarkdownRenderer>
             )}
             {activeTab === 'hints' && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {Array.from({ length: challenge.hintCount }, (_, i) => i + 1).map((num) => (
                   <div key={num}>
                     {hints[num] ? (
-                      <div className="bg-dark-700 rounded-lg p-4">
+                      <div className="hint-card hint-card-enter">
                         <MarkdownRenderer>{hints[num]}</MarkdownRenderer>
                       </div>
                     ) : (
                       <button
                         onClick={() => loadHint(num)}
-                        className="text-sm text-yellow-400 hover:text-yellow-300"
+                        className="w-full text-left p-3 rounded-lg border border-dashed border-dark-600 hover:border-yellow-500/30 hover:bg-yellow-500/5 transition-all group"
                       >
-                        Reveal Hint {num} (-{challenge.points > 100 ? 50 : 25} pts)
+                        <span className="flex items-center gap-3">
+                          <span className="w-7 h-7 rounded-full bg-dark-700 border border-dark-600 flex items-center justify-center text-sm font-bold text-gray-500 group-hover:text-yellow-400 group-hover:border-yellow-500/30 transition-colors">
+                            {num}
+                          </span>
+                          <span className="text-sm text-gray-500 group-hover:text-yellow-400 transition-colors">
+                            Reveal Hint {num}
+                          </span>
+                          <span className="text-xs text-gray-600 ml-auto">
+                            -{challenge.points > 100 ? 50 : 25} pts
+                          </span>
+                        </span>
                       </button>
                     )}
                   </div>
                 ))}
-                <button
-                  onClick={loadSolution}
-                  className="text-sm text-gray-500 hover:text-gray-300 mt-4"
-                >
-                  {showSolution ? 'Hide' : 'Show'} Solution
-                </button>
-                {showSolution && solution && (
-                  <pre className="bg-dark-700 rounded-lg p-4 text-xs text-gray-300 overflow-x-auto whitespace-pre-wrap mt-2">
-                    {solution}
-                  </pre>
-                )}
+
+                <div className="pt-2 border-t border-dark-600 mt-4">
+                  <button
+                    onClick={loadSolution}
+                    className="text-sm text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-2"
+                  >
+                    <span>{showSolution ? '▾' : '▸'}</span>
+                    {showSolution ? 'Hide' : 'Show'} Solution
+                  </button>
+                  {showSolution && solution && (
+                    <div className="mt-3">
+                      <CodeBlock code={solution} language="yaml" showLineNumbers />
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -209,15 +282,15 @@ export function ChallengeWorkspace() {
           {/* Editor */}
           <div className="bg-dark-800 rounded-xl border border-dark-600 overflow-hidden">
             <div className="bg-dark-700 px-4 py-2 border-b border-dark-600 flex items-center justify-between">
-              <span className="text-sm font-medium">Workflow YAML</span>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-red-500/60" />
+                <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
+                <div className="w-3 h-3 rounded-full bg-green-500/60" />
+                <span className="text-sm font-medium ml-2">workflow.yml</span>
+              </div>
               <span className="text-xs text-gray-500">Editable</span>
             </div>
-            <textarea
-              value={workflow}
-              onChange={(e) => setWorkflow(e.target.value)}
-              className="w-full h-64 bg-dark-900 text-gray-300 p-4 font-mono text-xs resize-none focus:outline-none"
-              spellCheck={false}
-            />
+            <YamlEditor value={workflow} onChange={setWorkflow} />
           </div>
 
           {/* Results */}
@@ -228,40 +301,68 @@ export function ChallengeWorkspace() {
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`flex-1 py-1 text-xs rounded transition-colors ${
-                      activeTab === tab ? 'bg-dark-600 text-white' : 'text-gray-400 hover:text-white'
+                    className={`relative flex-1 py-1.5 text-xs font-medium rounded transition-all ${
+                      activeTab === tab
+                        ? 'bg-dark-600 text-white'
+                        : 'text-gray-400 hover:text-white hover:bg-dark-600/50'
                     }`}
                   >
                     {tab.charAt(0).toUpperCase() + tab.slice(1)}
                     {tab === 'findings' && result.result.findings.length > 0 && (
-                      <span className="ml-1 text-orange-400">({result.result.findings.length})</span>
+                      <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-orange-500/20 text-orange-400">
+                        {result.result.findings.length}
+                      </span>
                     )}
                   </button>
                 ))}
               </div>
-              <div className="max-h-[300px] overflow-y-auto scrollbar-thin p-4">
+              <div className="max-h-[350px] overflow-y-auto scrollbar-thin">
                 {activeTab === 'logs' && (
-                  <pre className="text-xs text-gray-400 whitespace-pre-wrap">
-                    {result.result.logs.join('\n')}
-                  </pre>
+                  <div className="p-4 font-mono text-xs space-y-0.5">
+                    {logLines.map((line) => (
+                      <div
+                        key={line.key}
+                        className={`leading-relaxed ${
+                          line.isJob ? 'text-gray-300 font-bold py-1' :
+                          line.isStep ? 'text-green-400' :
+                          line.isFailed ? 'text-red-400 font-bold' :
+                          line.isComplete ? 'text-green-400' :
+                          line.isOutput ? 'text-gray-500 pl-4' :
+                          'text-gray-500'
+                        }`}
+                      >
+                        {line.text}
+                      </div>
+                    ))}
+                  </div>
                 )}
                 {activeTab === 'findings' && (
-                  <div className="space-y-2">
+                  <div className="p-4 space-y-3">
                     {result.result.findings.length === 0 ? (
-                      <p className="text-sm text-green-400">No security findings!</p>
+                      <div className="flex items-center gap-2 text-green-400 py-4">
+                        <span className="text-lg">✓</span>
+                        <span className="text-sm font-medium">No security findings</span>
+                      </div>
                     ) : (
-                      result.result.findings.map((f, i) => (
-                        <div key={i} className={`rounded-lg p-3 ${severityColors[f.severity] || severityColors.info}`}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-bold uppercase">{f.severity}</span>
-                            <span className="text-xs opacity-75">{f.category}</span>
+                      result.result.findings.map((f, i) => {
+                        const styles = severityStyles[f.severity] || severityStyles.info;
+                        return (
+                          <div key={i} className={`rounded-lg p-3 border-l-2 ${styles.border} ${styles.bg}`}>
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${styles.badge}`}>
+                                {f.severity}
+                              </span>
+                              <span className="text-xs text-gray-500">{f.category}</span>
+                            </div>
+                            <p className="text-sm text-gray-300">{f.message}</p>
+                            {f.remediation && (
+                              <p className="text-xs text-gray-500 mt-1.5 pl-0 border-l-0">
+                                → {f.remediation}
+                              </p>
+                            )}
                           </div>
-                          <p className="text-sm">{f.message}</p>
-                          {f.remediation && (
-                            <p className="text-xs mt-1 opacity-75">→ {f.remediation}</p>
-                          )}
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 )}
@@ -273,16 +374,21 @@ export function ChallengeWorkspace() {
           {result && (
             <div className={`rounded-xl p-4 border ${
               result.validation.passed
-                ? 'bg-green-500/10 border-green-500/20 text-green-400'
-                : 'bg-red-500/10 border-red-500/20 text-red-400'
+                ? 'bg-green-500/10 border-green-500/20'
+                : 'bg-red-500/10 border-red-500/20'
             }`}>
-              <div className="font-bold mb-2">
-                {result.validation.passed ? '✓ Challenge Passed!' : '✗ Challenge Failed'}
+              <div className={`flex items-center gap-2 font-bold mb-3 ${
+                result.validation.passed ? 'text-green-400' : 'text-red-400'
+              }`}>
+                <span className="text-lg">{result.validation.passed ? '✓' : '✗'}</span>
+                <span>{result.validation.passed ? 'Challenge Passed!' : 'Challenge Failed'}</span>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {result.validation.checks.map((c, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm">
-                    <span>{c.passed ? '✓' : '✗'}</span>
+                  <div key={i} className={`flex items-start gap-2 text-sm ${
+                    c.passed ? 'text-green-400/80' : 'text-red-400/80'
+                  }`}>
+                    <span className="mt-0.5">{c.passed ? '✓' : '✗'}</span>
                     <span>{c.description}</span>
                   </div>
                 ))}
