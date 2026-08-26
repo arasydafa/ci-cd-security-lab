@@ -1,0 +1,28 @@
+name: Build Secure App
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          cat <<'EOF' > Dockerfile
+          FROM node:20-slim
+          ENV DB_PASSWORD=supersecret123
+          ENV API_KEY=sk-live-abc123def456
+          WORKDIR /app
+          COPY package*.json ./
+          RUN npm ci --production
+          COPY src/ ./src/
+          CMD ["node", "src/index.js"]
+          EOF
+          docker build --build-arg AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI -t myapp:latest .
+
+      - name: Push image
+        run: docker push myapp:latest

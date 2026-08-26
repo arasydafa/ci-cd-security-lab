@@ -1,0 +1,19 @@
+id: tf-public-s3
+title: "Public S3 Bucket"
+level: intermediate
+topic: terraform
+category: security
+estimated_time: 15m
+points: 150
+description: |
+  This workflow creates an S3 bucket with public read access. Sensitive data
+  stored in the bucket is exposed to the entire internet. Use private ACLs
+  and enable public access blocks.
+tags: [terraform, aws, s3, public-access]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ["public-read", "public-read-write", "block_public_acls = false"]
+scoring:
+  hints_used_penalty: 30
+  time_bonus: 75

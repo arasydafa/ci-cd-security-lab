@@ -1,0 +1,19 @@
+id: docker-running-as-root
+title: "Container Root Trap"
+level: beginner
+topic: docker
+category: security
+estimated_time: 10m
+points: 100
+description: |
+  This workflow builds a Docker image that runs as root. If the container
+  is compromised, the attacker has full root access to the host kernel.
+  Add a non-root USER instruction to your Dockerfile.
+tags: [docker, root, container-security]
+validation:
+  type: workflow-check
+  expected:
+    - should_contain: ["USER"]
+scoring:
+  hints_used_penalty: 25
+  time_bonus: 50

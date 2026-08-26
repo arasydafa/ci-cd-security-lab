@@ -1,0 +1,19 @@
+id: mon-log-secrets
+title: "Secrets in CI Logs"
+level: advanced
+topic: monitoring
+category: security
+estimated_time: 20m
+points: 200
+description: |
+  This workflow logs sensitive data — tokens, passwords, and secrets — to CI
+  logs that persist in storage. Anyone with log access can extract credentials.
+  Use secret masking and filter sensitive output.
+tags: [monitoring, logs, secrets, masking]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ["echo ${{ secrets", "echo.*SECRET", "echo.*PASSWORD", "::set-output.*password"]
+scoring:
+  hints_used_penalty: 50
+  time_bonus: 100

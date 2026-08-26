@@ -1,0 +1,28 @@
+name: Deploy with Secrets
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify credentials
+        run: |
+          echo "API Token: ${{ secrets.API_TOKEN }}"
+          echo "AWS Key: ${{ secrets.AWS_ACCESS_KEY_ID }}"
+          echo "DB Password: ${{ secrets.DB_PASSWORD }}"
+
+      - name: Setup credentials
+        run: |
+          echo "Setting up AWS credentials..."
+          export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Deploy
+        run: |
+          echo "Deploying with token ${{ secrets.API_TOKEN }}..."
+          echo "Deploy complete"

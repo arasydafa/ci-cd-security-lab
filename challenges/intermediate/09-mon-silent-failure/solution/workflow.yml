@@ -1,0 +1,41 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Security scan
+        run: npm audit --audit-level=high
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy
+        run: |
+          echo "Deploying to production..."
+          echo "Deploy complete"
+
+      - name: Health check
+        run: |
+          echo "Checking health endpoint..."
+          echo "Health check passed"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "DEPLOYMENT FAILED — alerting team"
+          echo "Repository: ${{ github.repository }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"

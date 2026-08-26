@@ -1,0 +1,31 @@
+name: Terraform Apply
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Init
+        run: terraform init
+
+      - name: Plan
+        run: terraform plan -out=tfplan
+
+      - name: Apply
+        run: terraform apply -auto-approve tfplan
+
+      - name: Commit state
+        run: |
+          git config user.name "terraform-bot"
+          git config user.email "bot@example.com"
+          git add *.tfstate .terraform/
+          git commit -m "Update state" || echo "No changes"
+          git push

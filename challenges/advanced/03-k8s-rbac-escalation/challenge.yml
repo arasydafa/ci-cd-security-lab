@@ -1,0 +1,19 @@
+id: k8s-rbac-escalation
+title: "RBAC Privilege Escalation"
+level: advanced
+topic: kubernetes
+category: security
+estimated_time: 20m
+points: 200
+description: |
+  This workflow applies RBAC rules with wildcard verbs and resources.
+  Any pod with the bound ServiceAccount can read secrets, create pods,
+  and escalate to cluster-admin. Apply least-privilege RBAC.
+tags: [kubernetes, rbac, privilege-escalation]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ['verbs: ["*"]', 'resources: ["*"]']
+scoring:
+  hints_used_penalty: 50
+  time_bonus: 100

@@ -1,0 +1,19 @@
+id: self-hosted-risk
+title: "Self-Hosted Runner Risk"
+level: intermediate
+topic: github-actions
+category: security
+estimated_time: 15m
+points: 150
+description: |
+  This workflow uses self-hosted runners without container isolation.
+  A malicious PR could persist on the runner and compromise future builds.
+  Switch to GitHub-hosted runners or add container isolation.
+tags: [runners, isolation, supply-chain]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ["self-hosted"]
+scoring:
+  hints_used_penalty: 30
+  time_bonus: 75

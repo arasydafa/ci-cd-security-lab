@@ -1,0 +1,19 @@
+id: mon-no-build-status
+title: "Invisible Failures"
+level: beginner
+topic: monitoring
+category: best-practice
+estimated_time: 10m
+points: 100
+description: |
+  This workflow doesn't report build status back to the commit. When builds
+  fail, nobody knows — broken code gets merged silently. Add status checks
+  to make failures visible.
+tags: [monitoring, status, visibility]
+validation:
+  type: workflow-check
+  expected:
+    - should_contain: ["actions/github-script"]
+scoring:
+  hints_used_penalty: 25
+  time_bonus: 50

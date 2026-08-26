@@ -1,0 +1,23 @@
+name: Build with DinD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: docker:24-dind
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          docker build -t myapp:latest .
+
+      - name: Push image
+        run: |
+          docker push myapp:latest

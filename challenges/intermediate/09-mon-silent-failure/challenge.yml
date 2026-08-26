@@ -1,0 +1,19 @@
+id: mon-silent-failure
+title: "Silent Failure黑洞"
+level: intermediate
+topic: monitoring
+category: best-practice
+estimated_time: 15m
+points: 150
+description: |
+  This workflow fails silently — broken steps are hidden with continue-on-error,
+  and there are no failure notifications. Bad deploys go unnoticed for hours.
+  Remove error suppression and add failure alerts.
+tags: [monitoring, alerts, error-handling]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ["continue-on-error: true"]
+scoring:
+  hints_used_penalty: 30
+  time_bonus: 75

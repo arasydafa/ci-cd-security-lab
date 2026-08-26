@@ -1,0 +1,19 @@
+id: k8s-privileged-pod
+title: "Privileged Pod Escape"
+level: beginner
+topic: kubernetes
+category: security
+estimated_time: 10m
+points: 100
+description: |
+  This workflow deploys a Kubernetes manifest with a privileged container.
+  Privileged containers have full access to the host — equivalent to root on the node.
+  Remove the privileged flag and add specific capabilities only if needed.
+tags: [kubernetes, privileged, pod-security]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ["privileged: true"]
+scoring:
+  hints_used_penalty: 25
+  time_bonus: 50

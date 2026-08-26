@@ -1,0 +1,35 @@
+name: Reusable Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      version:
+        required: false
+        type: string
+        default: 'latest'
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_ENV: ${{ inputs.environment }}
+      DEPLOY_VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to environment
+        run: |
+          echo "Deploying version $DEPLOY_VERSION to $DEPLOY_ENV"
+          echo "Running deploy script for $DEPLOY_ENV"
+
+      - name: Notify
+        run: |
+          echo "Deployment of $DEPLOY_VERSION to $DEPLOY_ENV complete"

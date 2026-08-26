@@ -1,0 +1,19 @@
+id: docker-secrets-in-env
+title: "Secrets in Image Layers"
+level: intermediate
+topic: docker
+category: security
+estimated_time: 15m
+points: 150
+description: |
+  This workflow builds a Docker image with secrets baked into ENV layers.
+  Anyone with image pull access can extract the secrets using docker history.
+  Use build secrets or runtime environment variables instead.
+tags: [docker, secrets, image-layers]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ["ENV.*PASSWORD", "ENV.*SECRET", "ENV.*KEY=", "--build-arg.*PASSWORD", "--build-arg.*SECRET"]
+scoring:
+  hints_used_penalty: 30
+  time_bonus: 75

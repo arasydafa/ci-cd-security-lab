@@ -1,0 +1,20 @@
+id: docker-socket-mount
+title: "Docker Socket Escape"
+level: advanced
+topic: docker
+category: security
+estimated_time: 20m
+points: 200
+description: |
+  This workflow mounts the Docker socket into a build container for
+  Docker-in-Docker builds. This gives the container full control over
+  the host's Docker daemon — effectively root access.
+  Use remote builders or kaniko instead.
+tags: [docker, socket, privilege-escalation]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ["docker.sock"]
+scoring:
+  hints_used_penalty: 50
+  time_bonus: 100

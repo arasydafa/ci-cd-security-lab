@@ -1,0 +1,43 @@
+name: Setup RBAC
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply RBAC
+        run: |
+          cat <<'EOF' > rbac.yml
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          metadata:
+            name: app-role
+            namespace: default
+          rules:
+            - apiGroups: [""]
+              resources: ["pods", "services", "configmaps"]
+              verbs: ["get", "list", "watch"]
+            - apiGroups: ["apps"]
+              resources: ["deployments"]
+              verbs: ["get", "list", "watch"]
+          ---
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          metadata:
+            name: app-role-binding
+            namespace: default
+          subjects:
+            - kind: ServiceAccount
+              name: app-sa
+              namespace: default
+          roleRef:
+            kind: Role
+            name: app-role
+            apiGroup: rbac.authorization.k8s.io
+          EOF
+          kubectl apply -f rbac.yml

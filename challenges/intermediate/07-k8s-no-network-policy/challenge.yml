@@ -1,0 +1,19 @@
+id: k8s-no-network-policy
+title: "Open Network Chaos"
+level: intermediate
+topic: kubernetes
+category: security
+estimated_time: 15m
+points: 150
+description: |
+  This workflow deploys multiple microservices without any NetworkPolicy.
+  Any pod can communicate with any other pod — including databases, payment
+  services, and admin panels. Add NetworkPolicies to isolate your services.
+tags: [kubernetes, network-policy, segmentation]
+validation:
+  type: workflow-check
+  expected:
+    - should_contain: ["kind: NetworkPolicy"]
+scoring:
+  hints_used_penalty: 30
+  time_bonus: 75

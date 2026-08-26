@@ -1,0 +1,20 @@
+id: reusable-workflow-injection
+title: "Reusable Workflow Injection"
+level: advanced
+topic: github-actions
+category: security
+estimated_time: 25m
+points: 200
+description: |
+  This reusable workflow accepts inputs from caller workflows and passes
+  them directly into shell commands via expression interpolation. An attacker
+  can craft a malicious caller workflow to inject arbitrary code.
+  Sanitize all inputs before using them in run steps.
+tags: [injection, reusable-workflows, inputs]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ["${{ inputs."]
+scoring:
+  hints_used_penalty: 50
+  time_bonus: 100

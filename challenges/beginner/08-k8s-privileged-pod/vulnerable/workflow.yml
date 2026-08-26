@@ -1,0 +1,38 @@
+name: Deploy to Kubernetes
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply manifest
+        run: |
+          cat <<'EOF' > deployment.yml
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: webapp
+          spec:
+            replicas: 3
+            selector:
+              matchLabels:
+                app: webapp
+            template:
+              metadata:
+                labels:
+                  app: webapp
+              spec:
+                containers:
+                  - name: webapp
+                    image: myapp:latest
+                    securityContext:
+                      privileged: true
+                    ports:
+                      - containerPort: 3000
+          EOF
+          kubectl apply -f deployment.yml

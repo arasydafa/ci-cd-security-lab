@@ -1,0 +1,19 @@
+id: env-dumping
+title: "Debugging Gone Wrong"
+level: beginner
+topic: github-actions
+category: security
+estimated_time: 10m
+points: 100
+description: |
+  This workflow dumps environment variables to the logs for debugging.
+  But environment variables include secrets — and CI logs are stored forever.
+  Remove the env dump to prevent credential exposure.
+tags: [secrets, logging, env]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ["env | grep", "printenv", "env | head"]
+scoring:
+  hints_used_penalty: 25
+  time_bonus: 50

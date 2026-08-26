@@ -1,0 +1,112 @@
+name: Deploy Microservices
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy network policies
+        run: |
+          cat <<'EOF' > network-policy.yml
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            name: default-deny-ingress
+          spec:
+            podSelector: {}
+            policyTypes:
+              - Ingress
+          ---
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            name: allow-frontend-to-api
+          spec:
+            podSelector:
+              matchLabels:
+                app: api
+            ingress:
+              - from:
+                  - podSelector:
+                      matchLabels:
+                        app: frontend
+          ---
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            name: allow-api-to-db
+          spec:
+            podSelector:
+              matchLabels:
+                app: database
+            ingress:
+              - from:
+                  - podSelector:
+                      matchLabels:
+                        app: api
+          EOF
+          kubectl apply -f network-policy.yml
+
+      - name: Deploy services
+        run: |
+          cat <<'EOF' > services.yml
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: frontend
+          spec:
+            replicas: 2
+            selector:
+              matchLabels:
+                app: frontend
+            template:
+              metadata:
+                labels:
+                  app: frontend
+              spec:
+                containers:
+                  - name: frontend
+                    image: frontend:latest
+          ---
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: api
+          spec:
+            replicas: 2
+            selector:
+              matchLabels:
+                app: api
+            template:
+              metadata:
+                labels:
+                  app: api
+              spec:
+                containers:
+                  - name: api
+                    image: api:latest
+          ---
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: database
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: database
+            template:
+              metadata:
+                labels:
+                  app: database
+              spec:
+                containers:
+                  - name: database
+                    image: postgres:16
+          EOF
+          kubectl apply -f services.yml

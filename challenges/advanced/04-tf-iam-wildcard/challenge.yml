@@ -1,0 +1,19 @@
+id: tf-iam-wildcard
+title: "IAM Wildcard Policies"
+level: advanced
+topic: terraform
+category: security
+estimated_time: 20m
+points: 200
+description: |
+  This workflow creates IAM policies with wildcard actions and resources.
+  Any entity with this policy can do anything to any AWS resource.
+  Apply least-privilege IAM with specific actions and resource ARNs.
+tags: [terraform, aws, iam, least-privilege]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ['"Action": "*"', '"Resource": "*"']
+scoring:
+  hints_used_penalty: 50
+  time_bonus: 100

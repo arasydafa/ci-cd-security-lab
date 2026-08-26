@@ -1,0 +1,19 @@
+id: tf-state-in-git
+title: "State in Version Control"
+level: beginner
+topic: terraform
+category: security
+estimated_time: 10m
+points: 100
+description: |
+  This workflow commits Terraform state files to git. State files contain
+  secrets (database passwords, API keys) and cause merge conflicts.
+  Use remote state and add *.tfstate to .gitignore.
+tags: [terraform, state, git]
+validation:
+  type: workflow-check
+  expected:
+    - should_not_contain: ["git add.*tfstate", "*.tfstate"]
+scoring:
+  hints_used_penalty: 25
+  time_bonus: 50
