@@ -14,7 +14,7 @@ const manager = new ChallengeManager();
 program
   .name('cicd-lab')
   .description('CI/CD Security Learning Lab - simulate, learn, and master pipeline security')
-  .version('1.0.0');
+  .version('2.0.0');
 
 program
   .command('list')

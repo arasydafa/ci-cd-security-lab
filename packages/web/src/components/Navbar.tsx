@@ -17,6 +17,9 @@ export function Navbar() {
           <Link to="/challenges" className="text-gray-400 hover:text-white transition-colors">
             Challenges
           </Link>
+          <Link to="/reference" className="text-gray-400 hover:text-white transition-colors">
+            Reference
+          </Link>
         </div>
       </div>
     </nav>

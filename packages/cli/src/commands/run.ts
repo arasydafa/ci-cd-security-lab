@@ -8,6 +8,15 @@ export async function runCommand(
   opts: { challenge?: string }
 ): Promise<void> {
   const challengeId = opts.challenge;
+
+  if (!challengeId && !file) {
+    console.log(chalk.red('\n  Provide a challenge ID with -c <id> or a YAML file path.\n'));
+    console.log(chalk.dim('  Examples:'));
+    console.log(chalk.dim('    cicd-lab run -c secrets-leak'));
+    console.log(chalk.dim('    cicd-lab run fixed.yml -c secrets-leak\n'));
+    return;
+  }
+
   let workflowYaml: string | undefined;
 
   if (file) {

@@ -1,4 +1,3 @@
-import fs from 'fs';
 import type { ChallengeManager } from '@cicd-lab/simulator';
 import chalk from 'chalk';
 

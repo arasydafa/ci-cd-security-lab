@@ -10,24 +10,56 @@ An interactive learning platform for CI/CD security. Simulate vulnerable GitHub 
 - Detects security vulnerabilities (secrets leaks, supply chain risks, permissions issues)
 - Validates user fixes against challenge requirements
 
-### 9 Hands-On Challenges
+### 24 Hands-On Challenges
 
-**Beginner (5)**
-| Challenge | Concept | Points |
-|-----------|---------|--------|
-| Don't Leak Your Secrets | Hardcoded credentials in workflow | 100 |
-| Too Much Power | Overly broad permissions | 75 |
-| Trust No One | Unpinned action versions | 100 |
-| Don't Swallow Errors | Silenced build failures | 75 |
-| Verify Before You Run | Unverified remote scripts | 100 |
+**Beginner (10)**
 
-**Intermediate (4)**
-| Challenge | Concept | Points |
-|-----------|---------|--------|
-| Supply Chain Defense | Multi-stage attack detection | 200 |
-| Artifact Integrity | Missing checksums | 150 |
-| Script Injection Defense | GitHub context injection | 150 |
-| OIDC Trust Done Right | AWS credential management | 150 |
+| Challenge | Topic | Concept | Points |
+|-----------|-------|---------|--------|
+| Don't Leak Your Secrets | GitHub Actions | Hardcoded credentials in workflow | 100 |
+| Too Much Power | GitHub Actions | Overly broad permissions | 75 |
+| Trust No One | GitHub Actions | Unpinned action versions | 100 |
+| Don't Swallow Errors | GitHub Actions | Silenced build failures | 75 |
+| Verify Before You Run | GitHub Actions | Unverified remote scripts | 100 |
+| Env Dumping | GitHub Actions | Leaking env variables | 100 |
+| Container Escape: Running as Root | Docker | Containers running as root | 100 |
+| Privileged Pod | Kubernetes | Pods with privileged access | 100 |
+| State in Git | Terraform | TF state files in repo | 100 |
+| Silent Pipeline | Monitoring | No build status notifications | 100 |
+
+**Intermediate (9)**
+
+| Challenge | Topic | Concept | Points |
+|-----------|-------|---------|--------|
+| Supply Chain Defense | GitHub Actions | Multi-stage attack detection | 200 |
+| Artifact Integrity | GitHub Actions | Missing checksums | 150 |
+| Script Injection Defense | GitHub Actions | GitHub context injection | 150 |
+| OIDC Trust Done Right | GitHub Actions | AWS credential management | 150 |
+| Self-Hosted Risk | GitHub Actions | Runner compromise exposure | 150 |
+| Secrets in Environment | Docker | Secrets leaked via env vars | 150 |
+| No Network Policy | Kubernetes | Missing network isolation | 150 |
+| Public S3 Bucket | Terraform | Exposed cloud storage | 150 |
+| Silent Failures | Monitoring | Unnotified pipeline failures | 150 |
+
+**Advanced (5)**
+
+| Challenge | Topic | Concept | Points |
+|-----------|-------|---------|--------|
+| Reusable Workflow Injection | GitHub Actions | Cross-workflow injection | 200 |
+| Container Escape: Docker Socket Mount | Docker | Host socket exposure | 200 |
+| RBAC Escalation | Kubernetes | Privilege escalation paths | 200 |
+| IAM Wildcard | Terraform | Overly permissive IAM policies | 200 |
+| Logging Secrets | Monitoring | Sensitive data in logs | 200 |
+
+### Topics Covered
+
+| Topic | Challenges | Difficulty Range |
+|-------|-----------|-----------------|
+| GitHub Actions | 12 | Beginner → Advanced |
+| Docker | 3 | Beginner → Advanced |
+| Kubernetes | 3 | Beginner → Advanced |
+| Terraform | 3 | Beginner → Advanced |
+| Monitoring | 3 | Beginner → Advanced |
 
 ### Two Interfaces
 
@@ -72,9 +104,10 @@ ci-cd-security-lab/
 │   ├── cli/           # Command-line interface
 │   ├── server/        # REST API server
 │   └── web/           # React web interface
-├── challenges/        # Challenge definitions (YAML + Markdown)
-│   ├── beginner/
-│   └── intermediate/
+├── challenges/
+│   ├── beginner/      # 10 challenges
+│   ├── intermediate/  # 9 challenges
+│   └── advanced/      # 5 challenges
 └── .github/workflows/ # Demo workflows (the original lab content)
 ```
 
@@ -88,7 +121,7 @@ ci-cd-security-lab/
 | Simulation | js-yaml, child_process |
 | CLI | Commander.js, Chalk |
 | API | Express.js, Zod |
-| Web | React 18, Vite, Tailwind CSS |
+| Web | React 18, Vite, Tailwind CSS, Prism.js |
 | Database | SQLite (Phase 2) |
 
 ## Development
@@ -99,9 +132,6 @@ npm install
 
 # Build everything
 npm run build
-
-# Run tests
-npm run test
 
 # Start development
 npm run web        # Web UI dev server
