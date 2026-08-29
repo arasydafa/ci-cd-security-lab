@@ -16,6 +16,10 @@ interface Challenge {
   vulnerableWorkflow: string;
   hintCount: number;
   tags: string[];
+  scoring: {
+    hints_used_penalty: number;
+    time_bonus: number;
+  };
 }
 
 interface Finding {
@@ -31,6 +35,15 @@ interface ValidationCheck {
   message?: string;
 }
 
+interface ScoreResult {
+  basePoints: number;
+  hintsUsed: number;
+  hintsPenalty: number;
+  totalDeductions: number;
+  finalScore: number;
+  passed: boolean;
+}
+
 interface SimResult {
   result: {
     success: boolean;
@@ -42,6 +55,30 @@ interface SimResult {
     passed: boolean;
     checks: ValidationCheck[];
   };
+  score: ScoreResult;
+}
+
+interface ProgressEntry {
+  attempts: number;
+  hintsUsed: number;
+  bestScore: number;
+  completed: boolean;
+  completedAt?: string;
+}
+
+type ProgressData = Record<string, ProgressEntry>;
+
+function loadProgress(): ProgressData {
+  try {
+    const raw = localStorage.getItem('cicd-lab-progress');
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveProgress(data: ProgressData): void {
+  localStorage.setItem('cicd-lab-progress', JSON.stringify(data));
 }
 
 const severityStyles: Record<string, { badge: string; border: string; bg: string }> = {
@@ -71,9 +108,12 @@ export function ChallengeWorkspace() {
   const [hints, setHints] = useState<Record<number, string>>({});
   const [showSolution, setShowSolution] = useState(false);
   const [solution, setSolution] = useState('');
+  const [progress, setProgress] = useState<ProgressData>({});
 
+  // Load challenge and progress
   useEffect(() => {
     if (!id) return;
+    setProgress(loadProgress());
     fetch(`/api/v1/challenges/${id}`)
       .then((r) => r.json())
       .then((d) => {
@@ -86,13 +126,32 @@ export function ChallengeWorkspace() {
       .catch(() => setLoading(false));
   }, [id]);
 
+  const hintsUsed = id ? (progress[id]?.hintsUsed || 0) : 0;
+
   const loadHint = useCallback(async (num: number) => {
     if (!id) return;
     if (hints[num]) return;
     const res = await fetch(`/api/v1/challenges/${id}/hint/${num}`);
     const d = await res.json();
-    if (d.data) setHints((h) => ({ ...h, [num]: d.data.hint }));
-  }, [id, hints]);
+    if (d.data) {
+      setHints((h) => ({ ...h, [num]: d.data.hint }));
+      // Track hint usage
+      const newHintsUsed = Math.max((progress[id]?.hintsUsed || 0), num);
+      const prev = progress[id];
+      const updated = {
+        ...progress,
+        [id]: {
+          attempts: prev?.attempts || 0,
+          hintsUsed: newHintsUsed,
+          bestScore: prev?.bestScore || 0,
+          completed: prev?.completed || false,
+          completedAt: prev?.completedAt,
+        },
+      };
+      setProgress(updated);
+      saveProgress(updated);
+    }
+  }, [id, hints, progress]);
 
   const loadSolution = useCallback(async () => {
     if (!id) return;
@@ -113,14 +172,31 @@ export function ChallengeWorkspace() {
         body: JSON.stringify({ challengeId: id, workflowYaml: workflow }),
       });
       const d = await res.json();
-      if (d.data) setResult(d.data);
+      if (d.data) {
+        setResult(d.data);
+        // Save progress
+        const prev = progress[id];
+        const score = d.data.score;
+        const updated = {
+          ...progress,
+          [id]: {
+            attempts: (prev?.attempts || 0) + 1,
+            hintsUsed: score.hintsUsed,
+            bestScore: prev ? Math.max(prev.bestScore, score.finalScore) : score.finalScore,
+            completed: score.passed ? true : (prev?.completed || false),
+            completedAt: score.passed ? new Date().toISOString() : prev?.completedAt,
+          },
+        };
+        setProgress(updated);
+        saveProgress(updated);
+      }
       setActiveTab('logs');
     } catch (e) {
       console.error(e);
     } finally {
       setSimulating(false);
     }
-  }, [id, workflow]);
+  }, [id, workflow, progress]);
 
   const logLines = useMemo(() => {
     if (!result) return [];
@@ -182,6 +258,11 @@ export function ChallengeWorkspace() {
             </span>
             <span className="text-sm text-gray-400">{challenge.points} pts</span>
             <span className="text-sm text-gray-500">~{challenge.estimatedTime}</span>
+            {hintsUsed > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                {hintsUsed} hint(s) used
+              </span>
+            )}
           </div>
         </div>
         <button
@@ -250,7 +331,7 @@ export function ChallengeWorkspace() {
                             Reveal Hint {num}
                           </span>
                           <span className="text-xs text-gray-600 ml-auto">
-                            -{challenge.points > 100 ? 50 : 25} pts
+                            -{challenge.scoring.hints_used_penalty} pts
                           </span>
                         </span>
                       </button>
@@ -370,19 +451,42 @@ export function ChallengeWorkspace() {
             </div>
           )}
 
-          {/* Validation Summary */}
+          {/* Validation Summary + Score */}
           {result && (
             <div className={`rounded-xl p-4 border ${
               result.validation.passed
                 ? 'bg-green-500/10 border-green-500/20'
                 : 'bg-red-500/10 border-red-500/20'
             }`}>
-              <div className={`flex items-center gap-2 font-bold mb-3 ${
+              <div className={`flex items-center gap-2 font-bold mb-2 ${
                 result.validation.passed ? 'text-green-400' : 'text-red-400'
               }`}>
                 <span className="text-lg">{result.validation.passed ? '✓' : '✗'}</span>
                 <span>{result.validation.passed ? 'Challenge Passed!' : 'Challenge Failed'}</span>
               </div>
+
+              {/* Score Display */}
+              {result.score && (
+                <div className={`mb-3 p-3 rounded-lg ${
+                  result.validation.passed ? 'bg-green-500/5' : 'bg-red-500/5'
+                }`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-gray-300">Score</span>
+                    <span className={`text-2xl font-bold ${
+                      result.validation.passed ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                      {result.score.finalScore}
+                      <span className="text-sm font-normal text-gray-500"> / {result.score.basePoints}</span>
+                    </span>
+                  </div>
+                  {result.score.totalDeductions > 0 && (
+                    <div className="text-xs text-yellow-400">
+                      {result.score.hintsUsed} hint(s) used: -{result.score.totalDeductions} pts
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 {result.validation.checks.map((c, i) => (
                   <div key={i} className={`flex items-start gap-2 text-sm ${

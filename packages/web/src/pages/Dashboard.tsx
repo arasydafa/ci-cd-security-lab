@@ -10,23 +10,55 @@ interface Challenge {
   estimatedTime: string;
 }
 
+interface ProgressEntry {
+  attempts: number;
+  hintsUsed: number;
+  bestScore: number;
+  completed: boolean;
+  completedAt?: string;
+}
+
+type ProgressData = Record<string, ProgressEntry>;
+
+function loadProgress(): ProgressData {
+  try {
+    const raw = localStorage.getItem('cicd-lab-progress');
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
 export function Dashboard() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState<ProgressData>({});
 
   useEffect(() => {
+    setProgress(loadProgress());
     fetch('/api/v1/challenges')
       .then((r) => r.json())
       .then((d) => { setChallenges(d.data || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
+  const completedCount = Object.values(progress).filter((p) => p.completed).length;
+  const attemptedCount = Object.values(progress).filter((p) => p.attempts > 0).length;
+  const totalPoints = challenges.reduce((sum, c) => sum + c.points, 0);
+  const earnedPoints = challenges.reduce((sum, c) => {
+    const p = progress[c.id];
+    return sum + (p?.completed ? p.bestScore : 0);
+  }, 0);
+
   const stats = {
     total: challenges.length,
     beginner: challenges.filter((c) => c.level === 'beginner').length,
     intermediate: challenges.filter((c) => c.level === 'intermediate').length,
     advanced: challenges.filter((c) => c.level === 'advanced').length,
-    totalPoints: challenges.reduce((sum, c) => sum + c.points, 0),
+    totalPoints,
+    completedCount,
+    attemptedCount,
+    earnedPoints,
   };
 
   return (
@@ -40,11 +72,34 @@ export function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Total Challenges" value={stats.total} color="blue" />
+        <StatCard label="Completed" value={`${completedCount} / ${stats.total}`} color="green" />
+        <StatCard label="Attempted" value={`${attemptedCount} / ${stats.total}`} color="blue" />
+        <StatCard label="Score Earned" value={`${earnedPoints} / ${totalPoints}`} color="purple" />
         <StatCard label="Beginner" value={stats.beginner} color="green" />
-        <StatCard label="Intermediate" value={stats.intermediate} color="yellow" />
-        <StatCard label="Total Points" value={stats.totalPoints} color="purple" />
       </div>
+
+      {completedCount > 0 && (
+        <div className="bg-dark-800 rounded-xl p-6 border border-dark-600">
+          <h2 className="text-xl font-bold mb-4">Your Progress</h2>
+          <div className="space-y-2">
+            {challenges.filter((c) => progress[c.id]?.completed).map((c) => (
+              <div key={c.id} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-green-400">✓</span>
+                  <span className="text-gray-300">{c.title}</span>
+                </div>
+                <span className="text-green-400 font-medium">{progress[c.id].bestScore} pts</span>
+              </div>
+            ))}
+          </div>
+          <Link
+            to="/challenges"
+            className="mt-4 inline-block text-sm text-green-400 hover:text-green-300 transition-colors"
+          >
+            Browse more challenges →
+          </Link>
+        </div>
+      )}
 
       <div className="bg-dark-800 rounded-xl p-6 border border-dark-600">
         <h2 className="text-xl font-bold mb-4">Quick Start</h2>
@@ -78,14 +133,17 @@ cicd-lab run -c secrets-leak
 cicd-lab run -c secrets-leak your-fix.yml
 
 # Get a hint
-cicd-lab hint secrets-leak 1`}
+cicd-lab hint secrets-leak 1
+
+# Check your progress
+cicd-lab progress`}
         </pre>
       </div>
     </div>
   );
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+function StatCard({ label, value, color }: { label: string; value: string | number; color: string }) {
   const colors: Record<string, string> = {
     blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
     green: 'bg-green-500/10 text-green-400 border-green-500/20',

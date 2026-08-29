@@ -133,7 +133,7 @@ export class ChallengeManager {
     return fs.readFileSync(challenge.paths.scenario, 'utf-8');
   }
 
-  async runSimulation(challengeId: string, workflowYaml?: string): Promise<SimulationResult> {
+  async runSimulation(challengeId: string, workflowYaml?: string, hintsUsed = 0): Promise<SimulationResult> {
     const yamlContent = workflowYaml || this.getVulnerableWorkflow(challengeId);
     if (!yamlContent) {
       throw new Error(`No workflow found for challenge ${challengeId}`);
@@ -145,7 +145,33 @@ export class ChallengeManager {
     const challenge = this.getById(challengeId);
     const validation = challenge ? this.validate(challenge, result, yamlContent) : { passed: false, checks: [] };
 
-    return { result, validation };
+    const score = this.calculateScore(challenge, validation.passed, hintsUsed);
+
+    return { result, validation, score };
+  }
+
+  private calculateScore(
+    challenge: Challenge | undefined,
+    passed: boolean,
+    hintsUsed: number
+  ): import('@cicd-lab/shared').ScoreResult {
+    if (!challenge) {
+      return { basePoints: 0, hintsUsed: 0, hintsPenalty: 0, totalDeductions: 0, finalScore: 0, passed: false };
+    }
+
+    const basePoints = challenge.points;
+    const penalty = challenge.scoring.hints_used_penalty;
+    const totalDeductions = hintsUsed * penalty;
+    const finalScore = passed ? Math.max(0, basePoints - totalDeductions) : 0;
+
+    return {
+      basePoints,
+      hintsUsed,
+      hintsPenalty: penalty,
+      totalDeductions,
+      finalScore,
+      passed,
+    };
   }
 
   private validate(
@@ -218,6 +244,7 @@ export class ChallengeManager {
 export interface SimulationResult {
   result: import('@cicd-lab/shared').WorkflowResult;
   validation: ValidationResponse;
+  score: import('@cicd-lab/shared').ScoreResult;
 }
 
 export interface ValidationResponse {

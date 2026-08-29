@@ -171,6 +171,16 @@ export interface SimulationRequest {
 export interface SimulationResponse {
   result: WorkflowResult;
   validation: ValidationResult;
+  score: ScoreResult;
+}
+
+export interface ScoreResult {
+  basePoints: number;
+  hintsUsed: number;
+  hintsPenalty: number;
+  totalDeductions: number;
+  finalScore: number;
+  passed: boolean;
 }
 
 export interface ValidationResult {

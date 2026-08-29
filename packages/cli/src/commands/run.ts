@@ -1,6 +1,36 @@
 import fs from 'fs';
+import path from 'path';
+import os from 'os';
 import type { ChallengeManager } from '@cicd-lab/simulator';
 import chalk from 'chalk';
+
+interface ProgressData {
+  [challengeId: string]: {
+    attempts: number;
+    hintsUsed: number;
+    bestScore: number;
+    completed: boolean;
+    completedAt?: string;
+  };
+}
+
+function getProgressFile(): string {
+  return path.join(os.homedir(), '.cicd-lab-progress.json');
+}
+
+function loadProgress(): ProgressData {
+  const file = getProgressFile();
+  if (!fs.existsSync(file)) return {};
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf-8'));
+  } catch {
+    return {};
+  }
+}
+
+function saveProgress(data: ProgressData): void {
+  fs.writeFileSync(getProgressFile(), JSON.stringify(data, null, 2), 'utf-8');
+}
 
 export async function runCommand(
   manager: ChallengeManager,
@@ -27,10 +57,14 @@ export async function runCommand(
     workflowYaml = fs.readFileSync(file, 'utf-8');
   }
 
+  // Load progress to get hints used
+  const progress = loadProgress();
+  const hintsUsed = challengeId ? (progress[challengeId]?.hintsUsed || 0) : 0;
+
   console.log(chalk.bold('\n  Running simulation...\n'));
 
   try {
-    const result = await manager.runSimulation(challengeId || '', workflowYaml);
+    const result = await manager.runSimulation(challengeId || '', workflowYaml, hintsUsed);
 
     // Print execution logs
     for (const log of result.result.logs) {
@@ -65,10 +99,43 @@ export async function runCommand(
     }
     console.log();
 
+    // Print score
+    const { score } = result;
     if (result.validation.passed) {
-      console.log(chalk.green.bold('  ✓ Challenge PASSED!\n'));
+      console.log(chalk.green.bold('  ✓ Challenge PASSED!'));
+      console.log(chalk.bold(`  Score: ${score.finalScore} / ${score.basePoints}`));
+      if (score.totalDeductions > 0) {
+        console.log(chalk.dim(`  (${score.hintsUsed} hint(s) used, -${score.totalDeductions} pts)`));
+      }
+      console.log();
+
+      // Save progress
+      if (challengeId) {
+        const prev = progress[challengeId];
+        const newBest = prev ? Math.max(prev.bestScore, score.finalScore) : score.finalScore;
+        progress[challengeId] = {
+          attempts: (prev?.attempts || 0) + 1,
+          hintsUsed,
+          bestScore: newBest,
+          completed: true,
+          completedAt: new Date().toISOString(),
+        };
+        saveProgress(progress);
+      }
     } else {
       console.log(chalk.red.bold('  ✗ Challenge FAILED — fix the issues above and try again.\n'));
+
+      // Record attempt
+      if (challengeId) {
+        const prev = progress[challengeId];
+        progress[challengeId] = {
+          attempts: (prev?.attempts || 0) + 1,
+          hintsUsed,
+          bestScore: prev?.bestScore || 0,
+          completed: false,
+        };
+        saveProgress(progress);
+      }
     }
   } catch (error) {
     console.log(chalk.red(`\n  Error: ${(error as Error).message}\n`));
