@@ -1,65 +1,36 @@
 # CI/CD Security Lab
 
-An interactive learning platform for CI/CD security. Simulate vulnerable GitHub Actions workflows, identify security issues, and learn to build secure pipelines.
+> An interactive learning platform for CI/CD security. Simulate vulnerable GitHub Actions workflows, identify security issues, and learn to build secure pipelines.
 
-## What's Inside
+<p align="center">
+  <img src="https://img.shields.io/badge/React-18.3-61DAFB?logo=react" alt="React">
+  <img src="https://img.shields.io/badge/TypeScript-5.5-3178C6?logo=typescript" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Vite-5.4-646CFF?logo=vite" alt="Vite">
+  <img src="https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?logo=tailwindcss" alt="Tailwind CSS">
+  <img src="https://img.shields.io/badge/Turborepo-2.0-3F8EF2?logo=turborepo" alt="Turborepo">
+</p>
+
+## Overview
+
+CI/CD Security Lab is a hands-on simulator that teaches pipeline security through 24 challenges. Users analyze vulnerable GitHub Actions workflows, identify security flaws (secrets leaks, supply chain attacks, overly broad permissions), and learn to build secure pipelines. Supports both CLI and Web UI interfaces.
+
+## Features
 
 ### Simulation Engine
-- Parses real GitHub Actions YAML syntax
-- Executes steps locally with sandboxed shell execution
-- Detects security vulnerabilities (secrets leaks, supply chain risks, permissions issues)
-- Validates user fixes against challenge requirements
+- **Real YAML Parsing**: Parses actual GitHub Actions workflow syntax
+- **Sandboxed Execution**: Runs steps locally with security controls
+- **Vulnerability Detection**: Identifies secrets leaks, supply chain risks, permissions issues
+- **Fix Validation**: Validates user fixes against challenge requirements
 
 ### 24 Hands-On Challenges
 
-**Beginner (10)**
+| Difficulty | Count | Topics |
+|------------|-------|--------|
+| Beginner | 10 | Hardcoded secrets, unpinned actions, root containers |
+| Intermediate | 9 | Supply chain attacks, script injection, OIDC misconfig |
+| Advanced | 5 | Cross-workflow injection, RBAC escalation, IAM wildcards |
 
-| Challenge | Topic | Concept | Points |
-|-----------|-------|---------|--------|
-| Don't Leak Your Secrets | GitHub Actions | Hardcoded credentials in workflow | 100 |
-| Too Much Power | GitHub Actions | Overly broad permissions | 75 |
-| Trust No One | GitHub Actions | Unpinned action versions | 100 |
-| Don't Swallow Errors | GitHub Actions | Silenced build failures | 75 |
-| Verify Before You Run | GitHub Actions | Unverified remote scripts | 100 |
-| Env Dumping | GitHub Actions | Leaking env variables | 100 |
-| Container Escape: Running as Root | Docker | Containers running as root | 100 |
-| Privileged Pod | Kubernetes | Pods with privileged access | 100 |
-| State in Git | Terraform | TF state files in repo | 100 |
-| Silent Pipeline | Monitoring | No build status notifications | 100 |
-
-**Intermediate (9)**
-
-| Challenge | Topic | Concept | Points |
-|-----------|-------|---------|--------|
-| Supply Chain Defense | GitHub Actions | Multi-stage attack detection | 200 |
-| Artifact Integrity | GitHub Actions | Missing checksums | 150 |
-| Script Injection Defense | GitHub Actions | GitHub context injection | 150 |
-| OIDC Trust Done Right | GitHub Actions | AWS credential management | 150 |
-| Self-Hosted Risk | GitHub Actions | Runner compromise exposure | 150 |
-| Secrets in Environment | Docker | Secrets leaked via env vars | 150 |
-| No Network Policy | Kubernetes | Missing network isolation | 150 |
-| Public S3 Bucket | Terraform | Exposed cloud storage | 150 |
-| Silent Failures | Monitoring | Unnotified pipeline failures | 150 |
-
-**Advanced (5)**
-
-| Challenge | Topic | Concept | Points |
-|-----------|-------|---------|--------|
-| Reusable Workflow Injection | GitHub Actions | Cross-workflow injection | 200 |
-| Container Escape: Docker Socket Mount | Docker | Host socket exposure | 200 |
-| RBAC Escalation | Kubernetes | Privilege escalation paths | 200 |
-| IAM Wildcard | Terraform | Overly permissive IAM policies | 200 |
-| Logging Secrets | Monitoring | Sensitive data in logs | 200 |
-
-### Topics Covered
-
-| Topic | Challenges | Difficulty Range |
-|-------|-----------|-----------------|
-| GitHub Actions | 12 | Beginner → Advanced |
-| Docker | 3 | Beginner → Advanced |
-| Kubernetes | 3 | Beginner → Advanced |
-| Terraform | 3 | Beginner → Advanced |
-| Monitoring | 3 | Beginner → Advanced |
+**Topics Covered**: GitHub Actions (12), Docker (3), Kubernetes (3), Terraform (3), Monitoring (3)
 
 ### Two Interfaces
 
@@ -77,21 +48,51 @@ npm run web        # Start dev server on :5173
 npm run serve      # Start API server on :3001
 ```
 
-## Quick Start
+## Tech Stack
+
+| Technology | Purpose |
+|------------|---------|
+| React 18 | UI framework |
+| TypeScript 5 | Type safety |
+| Vite 5 | Build tool |
+| Tailwind CSS 3 | Styling |
+| Turborepo 2 | Monorepo management |
+| Express.js | REST API server |
+| Commander.js | CLI framework |
+| Prism.js | Syntax highlighting |
+
+## Getting Started
+
+### Prerequisites
+- Node.js 18+
+- npm
+
+### Installation
 
 ```bash
-# Install dependencies
+git clone https://github.com/arasydafa/ci-cd-security-lab.git
+cd ci-cd-security-lab
 npm install
+```
 
-# Build all packages
+### Development
+
+```bash
+npm run web        # Web UI dev server on :5173
+npm run serve      # API server on :3001
+```
+
+### Build
+
+```bash
 npm run build
+```
 
-# Run the CLI
-npm run sim -- list
-npm run sim -- start secrets-leak
+### Deploy to GitHub Pages
 
-# Or start the web UI
-npm run web
+```bash
+npm run build
+# Copy dist/ contents to your gh-pages branch
 ```
 
 ## Project Structure
@@ -108,36 +109,31 @@ ci-cd-security-lab/
 │   ├── beginner/      # 10 challenges
 │   ├── intermediate/  # 9 challenges
 │   └── advanced/      # 5 challenges
-└── .github/workflows/ # Demo workflows (the original lab content)
+├── src/
+│   └── index.js       # Entry point
+├── package.json
+├── turbo.json
+└── tsconfig.base.json
 ```
 
-## Tech Stack
+## Contributing
 
-| Layer | Technology |
-|-------|-----------|
-| Runtime | Node.js 18+ |
-| Language | TypeScript |
-| Monorepo | Turborepo |
-| Simulation | js-yaml, child_process |
-| CLI | Commander.js, Chalk |
-| API | Express.js, Zod |
-| Web | React 18, Vite, Tailwind CSS, Prism.js |
-| Database | SQLite (Phase 2) |
-
-## Development
-
-```bash
-# Install dependencies
-npm install
-
-# Build everything
-npm run build
-
-# Start development
-npm run web        # Web UI dev server
-npm run serve      # API server
-```
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Built as an educational tool for learning CI/CD security
+- Inspired by GitHub Actions security best practices
+- Designed for DevOps engineers and security researchers
+
+---
+
+**Author**: Arasy Dafa Sulistya Kurniawan
