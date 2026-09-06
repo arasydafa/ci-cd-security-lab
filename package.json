@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "description": "Interactive CI/CD Security Learning Lab - simulate, learn, and master pipeline security",
+  "packageManager": "npm@10.0.0",
   "workspaces": [
     "packages/*"
   ],
