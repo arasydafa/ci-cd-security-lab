@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Check, ChevronDown, ChevronRight, Play, X } from 'lucide-react';
 import { Alert, Badge, Button, Card, EmptyState, Skeleton, Tabs } from '@omega-os/ui';
 import type { BadgeTone } from '@omega-os/ui';
+import { staticDetail, staticHint, staticSolution } from '../data/staticChallenges.js';
 import { MarkdownRenderer } from '../components/MarkdownRenderer.js';
 import { YamlEditor } from '../components/YamlEditor.js';
 import { CodeBlock } from '../components/CodeBlock.js';
@@ -118,13 +119,20 @@ export function ChallengeWorkspace() {
   const [showSolution, setShowSolution] = useState(false);
   const [solution, setSolution] = useState('');
   const [progress, setProgress] = useState<ProgressData>({});
+  // Static-hosting fallback (Pages has no API server): content from the
+  // bundled challenge data, simulation disabled with an honest notice.
+  const [offline, setOffline] = useState(false);
+  const [offlineNotice, setOfflineNotice] = useState(false);
 
   // Load challenge and progress
   useEffect(() => {
     if (!id) return;
     setProgress(loadProgress());
     fetch(`/api/v1/challenges/${id}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error('api unavailable');
+        return r.json();
+      })
       .then((d) => {
         if (d.data) {
           setChallenge(d.data);
@@ -132,7 +140,15 @@ export function ChallengeWorkspace() {
         }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        const detail = staticDetail(id);
+        if (detail) {
+          setChallenge(detail);
+          setWorkflow(detail.vulnerableWorkflow || '');
+          setOffline(true);
+        }
+        setLoading(false);
+      });
   }, [id]);
 
   const hintsUsed = id ? (progress[id]?.hintsUsed || 0) : 0;
@@ -140,38 +156,55 @@ export function ChallengeWorkspace() {
   const loadHint = useCallback(async (num: number) => {
     if (!id) return;
     if (hints[num]) return;
-    const res = await fetch(`/api/v1/challenges/${id}/hint/${num}`);
-    const d = await res.json();
-    if (d.data) {
-      setHints((h) => ({ ...h, [num]: d.data.hint }));
-      // Track hint usage
-      const newHintsUsed = Math.max((progress[id]?.hintsUsed || 0), num);
-      const prev = progress[id];
-      const updated = {
-        ...progress,
-        [id]: {
-          attempts: prev?.attempts || 0,
-          hintsUsed: newHintsUsed,
-          bestScore: prev?.bestScore || 0,
-          completed: prev?.completed || false,
-          completedAt: prev?.completedAt,
-        },
-      };
-      setProgress(updated);
-      saveProgress(updated);
+    try {
+      const res = await fetch(`/api/v1/challenges/${id}/hint/${num}`);
+      if (!res.ok) throw new Error('api unavailable');
+      const d = await res.json();
+      if (d.data) {
+        setHints((h) => ({ ...h, [num]: d.data.hint }));
+        // Track hint usage
+        const newHintsUsed = Math.max((progress[id]?.hintsUsed || 0), num);
+        const prev = progress[id];
+        const updated = {
+          ...progress,
+          [id]: {
+            attempts: prev?.attempts || 0,
+            hintsUsed: newHintsUsed,
+            bestScore: prev?.bestScore || 0,
+            completed: prev?.completed || false,
+            completedAt: prev?.completedAt,
+          },
+        };
+        setProgress(updated);
+        saveProgress(updated);
+      }
+    } catch {
+      const hint = staticHint(id, num);
+      if (hint) setHints((h) => ({ ...h, [num]: hint }));
     }
   }, [id, hints, progress]);
 
   const loadSolution = useCallback(async () => {
     if (!id) return;
     if (solution) { setShowSolution(!showSolution); return; }
-    const res = await fetch(`/api/v1/challenges/${id}/solution`);
-    const d = await res.json();
-    if (d.data) { setSolution(d.data.workflow); setShowSolution(true); }
+    try {
+      const res = await fetch(`/api/v1/challenges/${id}/solution`);
+      if (!res.ok) throw new Error('api unavailable');
+      const d = await res.json();
+      if (d.data) { setSolution(d.data.workflow); setShowSolution(true); }
+    } catch {
+      const s = staticSolution(id);
+      if (s) { setSolution(s); setShowSolution(true); }
+    }
   }, [id, solution, showSolution]);
 
   const runSimulation = useCallback(async () => {
     if (!id) return;
+    if (offline) {
+      setOfflineNotice(true);
+      setActiveTab('logs');
+      return;
+    }
     setSimulating(true);
     setResult(null);
     try {
@@ -275,6 +308,13 @@ export function ChallengeWorkspace() {
           Run Simulation
         </Button>
       </div>
+
+      {offlineNotice && (
+        <Alert tone="info" title="Simulation unavailable." onClose={() => setOfflineNotice(false)}>
+          This static deployment has no execution backend. Clone the repo and run
+          the API server locally to simulate workflows — your editor content is kept.
+        </Alert>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Info Panel */}

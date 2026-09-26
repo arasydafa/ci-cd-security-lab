@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "npm --prefix ../../../omega-os run build",
+    "gen-challenges": "node scripts/gen-challenges.mjs",
+    "prebuild": "npm run gen-challenges && npm --prefix ../../../omega-os run build",
     "build": "tsc && vite build && node -e \"require('fs').copyFileSync('dist/index.html', 'dist/404.html')\"",
     "preview": "vite preview"
   },

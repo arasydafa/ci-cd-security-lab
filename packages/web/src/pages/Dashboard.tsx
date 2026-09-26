@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Check } from 'lucide-react';
 import { Button, Card, CodeBlock } from '@omega-os/ui';
+import { staticList } from '../data/staticChallenges.js';
 
 interface Challenge {
   id: string;
@@ -58,9 +59,12 @@ export function Dashboard() {
   useEffect(() => {
     setProgress(loadProgress());
     fetch('/api/v1/challenges')
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error('api unavailable');
+        return r.json();
+      })
       .then((d) => { setChallenges(d.data || []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .catch(() => { setChallenges(staticList()); setLoading(false); });
   }, []);
 
   const completedCount = Object.values(progress).filter((p) => p.completed).length;

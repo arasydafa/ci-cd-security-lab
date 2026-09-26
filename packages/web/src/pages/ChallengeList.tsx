@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { Badge, Card, EmptyState, Skeleton } from '@omega-os/ui';
 import type { BadgeTone } from '@omega-os/ui';
+import { staticList } from '../data/staticChallenges.js';
 
 interface Challenge {
   id: string;
@@ -61,9 +62,12 @@ export function ChallengeList() {
     if (filter.topic) params.set('topic', filter.topic);
 
     fetch(`/api/v1/challenges?${params}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error('api unavailable');
+        return r.json();
+      })
       .then((d) => { setChallenges(d.data || []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .catch(() => { setChallenges(staticList(filter.level, filter.topic)); setLoading(false); });
   }, [filter]);
 
   return (
