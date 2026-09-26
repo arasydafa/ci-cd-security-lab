@@ -10,10 +10,12 @@ import { Docker } from './pages/reference/Docker.js';
 import { Kubernetes } from './pages/reference/Kubernetes.js';
 import { Terraform } from './pages/reference/Terraform.js';
 import { Monitoring } from './pages/reference/Monitoring.js';
+import { ToasterProvider } from '@omega-os/ui';
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-dark-900">
+    <ToasterProvider>
+    <div className="min-h-screen bg-ot-bg font-sans text-ot-text">
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 py-8">
         <Routes>
@@ -31,5 +33,6 @@ export default function App() {
         </Routes>
       </main>
     </div>
+    </ToasterProvider>
   );
 }

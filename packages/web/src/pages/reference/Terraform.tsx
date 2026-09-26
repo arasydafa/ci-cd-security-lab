@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Checklist, RefHeader, RelatedChallenges, Vuln } from '../../components/Reference.js';
 import { CodeBlock } from '../../components/CodeBlock.js';
 
 const vuln1_bad = '# terraform.tfstate committed to Git\n# Contains:\n# - database_password\n# - aws_access_key\n# - private_key';
@@ -22,20 +22,13 @@ const sensitiveVar = 'variable "database_password" {\n  type      = string\n  se
 export function Terraform() {
   return (
     <div className="space-y-10">
-      <div>
-        <Link to="/reference" className="text-sm text-gray-500 hover:text-gray-300 transition-colors mb-4 inline-block">
-          ← Reference
-        </Link>
-        <h1 className="text-3xl font-bold mb-3">Terraform Security</h1>
-        <p className="text-gray-400 text-lg">
-          Terraform manages cloud infrastructure as code. A misconfigured resource — an open S3
-          bucket, a wildcard IAM policy, or a leaked state file — can expose your entire cloud
-          environment.
-        </p>
-      </div>
+      <RefHeader
+        title="Terraform Security"
+        lede="Terraform manages cloud infrastructure as code. A misconfigured resource — an open S3 bucket, a wildcard IAM policy, or a leaked state file — can expose your entire cloud environment."
+      />
 
       <section>
-        <h2 className="text-2xl font-bold mb-4">Common Vulnerabilities</h2>
+        <h2 className="text-2xl font-bold mb-4 text-ot-text">Common Vulnerabilities</h2>
         <Vuln num={1} title="State Files in Git" description="Terraform state files contain all resource attributes, including secrets, database passwords, and API keys. Committing them to Git exposes every secret your infrastructure uses." bad={vuln1_bad} good={vuln1_good} />
         <Vuln num={2} title="Public S3 Buckets" description="S3 buckets with public read or write ACLs expose data to the internet. AWS has numerous incidents of leaked data through misconfigured S3 buckets." bad={vuln2_bad} good={vuln2_good} />
         <Vuln num={3} title="Wildcard IAM Policies" description="IAM policies with Action: * or Resource: * grant maximum privileges. If credentials leak, attackers have full access to the AWS account." bad={vuln3_bad} good={vuln3_good} />
@@ -43,29 +36,29 @@ export function Terraform() {
       </section>
 
       <section>
-        <h2 className="text-2xl font-bold mb-4">Secure Patterns</h2>
+        <h2 className="text-2xl font-bold mb-4 text-ot-text">Secure Patterns</h2>
 
-        <h3 className="text-lg font-bold mb-2">Remote State with Encryption and Locking</h3>
-        <p className="text-gray-400 mb-3">
+        <h3 className="text-lg font-bold mb-2 text-ot-text">Remote State with Encryption and Locking</h3>
+        <p className="text-ot-muted mb-3">
           Use a remote backend with encryption at rest and DynamoDB locking to prevent concurrent modifications.
         </p>
         <CodeBlock code={remoteState} language="bash" />
 
-        <h3 className="text-lg font-bold mb-2 mt-6">Least-Privilege IAM with Terraform</h3>
-        <p className="text-gray-400 mb-3">
+        <h3 className="text-lg font-bold mb-2 text-ot-text mt-6">Least-Privilege IAM with Terraform</h3>
+        <p className="text-ot-muted mb-3">
           Define IAM policies with specific actions and resources. Use data sources to reference existing policies.
         </p>
         <CodeBlock code={leastPrivilege} language="bash" />
 
-        <h3 className="text-lg font-bold mb-2 mt-6">Sensitive Variable Marking</h3>
-        <p className="text-gray-400 mb-3">
+        <h3 className="text-lg font-bold mb-2 text-ot-text mt-6">Sensitive Variable Marking</h3>
+        <p className="text-ot-muted mb-3">
           Mark sensitive variables to prevent them from appearing in plan output or state logs.
         </p>
         <CodeBlock code={sensitiveVar} language="bash" />
       </section>
 
       <section>
-        <h2 className="text-2xl font-bold mb-4">Hardening Checklist</h2>
+        <h2 className="text-2xl font-bold mb-4 text-ot-text">Hardening Checklist</h2>
         <Checklist items={[
           'Never commit terraform.tfstate or .tfvars to Git',
           'Use remote state with encryption (S3 + KMS)',
@@ -83,53 +76,15 @@ export function Terraform() {
       </section>
 
       <section>
-        <h2 className="text-2xl font-bold mb-4">Related Challenges</h2>
-        <div className="grid grid-cols-1 gap-3">
-          {[
+        <h2 className="text-2xl font-bold mb-4 text-ot-text">Related Challenges</h2>
+        <RelatedChallenges
+          items={[
             { id: 'tf-state-in-git', label: 'State in Git' },
             { id: 'tf-public-s3', label: 'Public S3 Bucket' },
             { id: 'tf-iam-wildcard', label: 'IAM Wildcard' },
-          ].map((c) => (
-            <Link key={c.id} to={`/challenges/${c.id}`} className="text-sm text-gray-400 hover:text-green-400 transition-colors px-3 py-2 rounded-lg bg-dark-800 border border-dark-600 hover:border-green-500/30">
-              {c.label}
-            </Link>
-          ))}
-        </div>
+          ]}
+        />
       </section>
-    </div>
-  );
-}
-
-function Vuln({ num, title, description, bad, good }: { num: number; title: string; description: string; bad: string; good: string }) {
-  return (
-    <div className="mb-6 bg-dark-800 rounded-xl border border-dark-600 overflow-hidden">
-      <div className="px-5 py-3 border-b border-dark-600">
-        <h3 className="font-bold"><span className="text-red-400 mr-2">{num}.</span>{title}</h3>
-        <p className="text-sm text-gray-400 mt-1">{description}</p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2">
-        <div className="p-4 bg-red-500/5 border-r border-dark-600">
-          <div className="text-xs font-bold text-red-400 uppercase tracking-wider mb-2">Vulnerable</div>
-          <pre className="text-xs text-gray-300 whitespace-pre-wrap leading-relaxed">{bad}</pre>
-        </div>
-        <div className="p-4 bg-green-500/5">
-          <div className="text-xs font-bold text-green-400 uppercase tracking-wider mb-2">Secure</div>
-          <pre className="text-xs text-gray-300 whitespace-pre-wrap leading-relaxed">{good}</pre>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Checklist({ items }: { items: string[] }) {
-  return (
-    <div className="bg-dark-800 rounded-xl border border-dark-600 p-5 space-y-2.5">
-      {items.map((item, i) => (
-        <label key={i} className="flex items-start gap-3 text-sm text-gray-300 cursor-default">
-          <input type="checkbox" className="mt-1 rounded border-dark-600 bg-dark-700 text-green-500 focus:ring-green-500/50" readOnly />
-          {item}
-        </label>
-      ))}
     </div>
   );
 }

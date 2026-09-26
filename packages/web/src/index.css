@@ -27,19 +27,6 @@ pre, code {
   background: #484f58;
 }
 
-/* ─── Skeleton Animation ────────────────────────────────── */
-
-@keyframes skeleton-pulse {
-  0%, 100% { opacity: 0.15; }
-  50% { opacity: 0.25; }
-}
-
-.skeleton {
-  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  background-color: #30363d;
-  border-radius: 0.5rem;
-}
-
 /* ─── Prism Token Theme (GitHub Dark) ───────────────────── */
 
 .token.comment,
@@ -120,57 +107,4 @@ pre, code {
 
 .token.builtin {
   color: #ffa657;
-}
-
-/* ─── Focus Ring Utility ────────────────────────────────── */
-
-.focus-ring {
-  @apply focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-dark-800;
-}
-
-/* ─── Hint Card ─────────────────────────────────────────── */
-
-.hint-card {
-  @apply relative bg-dark-700 rounded-lg p-4 pl-5 border-l-2 border-yellow-500/40;
-}
-
-.hint-card-enter {
-  @apply transition-all duration-300 ease-out;
-}
-
-/* ─── Tab Active Indicator ──────────────────────────────── */
-
-.tab-active {
-  @apply relative;
-}
-
-.tab-active::after {
-  content: '';
-  @apply absolute bottom-0 left-1/2 -translate-x-1/2 w-4/5 h-0.5 bg-green-400 rounded-full;
-}
-
-/* ─── Log Line Styling ──────────────────────────────────── */
-
-.log-job {
-  @apply text-gray-300 font-bold;
-}
-
-.log-step {
-  @apply text-green-400;
-}
-
-.log-starting {
-  @apply text-gray-500;
-}
-
-.log-success {
-  @apply text-green-400;
-}
-
-.log-failure {
-  @apply text-red-400 font-bold;
-}
-
-.log-output {
-  @apply text-gray-500 pl-2;
 }

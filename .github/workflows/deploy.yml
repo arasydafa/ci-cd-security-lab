@@ -27,8 +27,16 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      - name: "Checkout omega-os sibling (pinned v1.0.1 - bump tag on omega-os releases)"
+        run: git clone --depth 1 --branch v1.0.1 https://github.com/arasydafa/omega-os.git ../omega-os
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Build OmegaOS dist (gitignored, never present in fresh clones)
+        run: |
+          npm --prefix ../omega-os ci --no-audit --no-fund
+          npm --prefix ../omega-os run build
 
       - name: Build
         run: npm run build
