@@ -29,13 +29,13 @@ export function CodeBlock({ code, language = 'yaml', showLineNumbers = false, cl
   const lines = code.split('\n');
 
   return (
-    <div className={`relative group rounded-lg overflow-hidden bg-dark-900 border border-dark-600 ${className}`}>
+    <div className={`relative group rounded-ot-md overflow-hidden bg-ot-bg border border-ot-border ${className}`}>
       {/* Header bar */}
-      <div className="flex items-center justify-between px-4 py-1.5 bg-dark-700 border-b border-dark-600">
-        <span className="text-xs text-gray-500 uppercase tracking-wider">{language}</span>
+      <div className="flex items-center justify-between px-4 py-1.5 bg-ot-surface border-b border-ot-border">
+        <span className="text-xs text-ot-muted uppercase tracking-wider">{language}</span>
         <button
           onClick={handleCopy}
-          className="text-xs text-gray-500 hover:text-gray-300 transition-colors opacity-0 group-hover:opacity-100"
+          className="text-xs text-ot-muted hover:text-ot-text transition-colors opacity-0 group-hover:opacity-100"
           aria-label="Copy code"
         >
           {copied ? '✓ Copied' : 'Copy'}
@@ -48,8 +48,8 @@ export function CodeBlock({ code, language = 'yaml', showLineNumbers = false, cl
           <tbody>
             {showLineNumbers ? (
               lines.map((_, i) => (
-                <tr key={i} className="hover:bg-dark-800/50">
-                  <td className="select-none text-right pr-4 pl-4 py-0 text-xs text-dark-500 w-8 align-top border-r border-dark-600/50">
+                <tr key={i} className="hover:bg-ot-surface">
+                  <td className="select-none text-right pr-4 pl-4 py-0 text-xs text-ot-muted w-8 align-top border-r border-ot-border">
                     {i + 1}
                   </td>
                   <td className="px-4 py-0">

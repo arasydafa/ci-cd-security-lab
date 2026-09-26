@@ -52,11 +52,11 @@ export function YamlEditor({ value, onChange, className = '' }: YamlEditorProps)
   const lineCount = value.split('\n').length;
 
   return (
-    <div className={`relative flex bg-dark-900 rounded-b-lg overflow-hidden ${className}`}>
+    <div className={`relative flex bg-ot-bg rounded-b-ot-md overflow-hidden ${className}`}>
       {/* Line numbers */}
       <div
         ref={lineNumbersRef}
-        className="select-none text-right pr-3 pl-4 py-3 text-xs text-dark-500 bg-dark-900 border-r border-dark-600/50 overflow-hidden leading-relaxed"
+        className="select-none text-right pr-3 pl-4 py-3 text-xs text-ot-muted bg-ot-bg border-r border-ot-border overflow-hidden leading-relaxed"
         aria-hidden="true"
       >
         {Array.from({ length: lineCount }, (_, i) => (
@@ -69,7 +69,7 @@ export function YamlEditor({ value, onChange, className = '' }: YamlEditorProps)
         {/* Highlighted layer (behind) */}
         <pre
           ref={highlightRef}
-          className="absolute inset-0 m-0 p-3 font-mono text-xs leading-relaxed text-gray-300 whitespace-pre overflow-auto pointer-events-none !bg-transparent"
+          className="absolute inset-0 m-0 p-3 font-mono text-xs leading-relaxed text-ot-text whitespace-pre overflow-auto pointer-events-none !bg-transparent"
           aria-hidden="true"
         />
 
@@ -80,7 +80,7 @@ export function YamlEditor({ value, onChange, className = '' }: YamlEditorProps)
           onChange={(e) => onChange(e.target.value)}
           onScroll={handleScroll}
           onKeyDown={handleKeyDown}
-          className="relative w-full h-full min-h-[256px] bg-transparent text-transparent caret-green-400 p-3 font-mono text-xs leading-relaxed resize-none focus:outline-none z-10 selection:bg-green-500/20"
+          className="relative w-full h-full min-h-[256px] bg-transparent text-transparent caret-success p-3 font-mono text-xs leading-relaxed resize-none focus:outline-none z-10 selection:bg-success-bg"
           spellCheck={false}
           autoCapitalize="off"
           autoComplete="off"
