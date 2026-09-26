@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Checklist, RefHeader, RelatedChallenges, Vuln } from '../../components/Reference.js';
 import { CodeBlock } from '../../components/CodeBlock.js';
 
 const vuln1_bad = 'steps:\n  - name: Deploy\n    run: deploy.sh\n    env:\n      AWS_ACCESS_KEY: AKIAIOSFODNN7EXAMPLE\n      AWS_SECRET_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
@@ -28,20 +28,13 @@ const injectionExample = '# DANGEROUS — direct interpolation\n- run: echo "${{
 export function GitHubActions() {
   return (
     <div className="space-y-10">
-      <div>
-        <Link to="/reference" className="text-sm text-gray-500 hover:text-gray-300 transition-colors mb-4 inline-block">
-          ← Reference
-        </Link>
-        <h1 className="text-3xl font-bold mb-3">GitHub Actions Security</h1>
-        <p className="text-gray-400 text-lg">
-          GitHub Actions is the most widely used CI/CD platform. Its flexibility — reusable workflows,
-          marketplace actions, and repository secrets — makes it a prime target for supply chain attacks
-          and misconfigurations.
-        </p>
-      </div>
+      <RefHeader
+        title="GitHub Actions Security"
+        lede="GitHub Actions is the most widely used CI/CD platform. Its flexibility — reusable workflows, marketplace actions, and repository secrets — makes it a prime target for supply chain attacks and misconfigurations."
+      />
 
       <section>
-        <h2 className="text-2xl font-bold mb-4">Common Vulnerabilities</h2>
+        <h2 className="text-2xl font-bold mb-4 text-ot-text">Common Vulnerabilities</h2>
         <Vuln num={1} title="Hardcoded Secrets" description="Credentials, API keys, or tokens embedded directly in workflow files. Anyone with read access to the repository can see them." bad={vuln1_bad} good={vuln1_good} />
         <Vuln num={2} title="Overly Broad Permissions" description="Workflows with write-all or permissions that exceed what the job needs. A compromised step can modify code, create releases, or access all secrets." bad={vuln2_bad} good={vuln2_good} />
         <Vuln num={3} title="Unpinned Action Versions" description="Using mutable tags like @main or @v2 means a compromised action update runs automatically in your pipeline." bad={vuln3_bad} good={vuln3_good} />
@@ -51,32 +44,32 @@ export function GitHubActions() {
       </section>
 
       <section>
-        <h2 className="text-2xl font-bold mb-4">Secure Patterns</h2>
+        <h2 className="text-2xl font-bold mb-4 text-ot-text">Secure Patterns</h2>
 
-        <h3 className="text-lg font-bold mb-2">Least-Privilege Permissions</h3>
-        <p className="text-gray-400 mb-3">
+        <h3 className="text-lg font-bold mb-2 text-ot-text">Least-Privilege Permissions</h3>
+        <p className="text-ot-muted mb-3">
           Set permissions at the workflow level, then narrow per-job. Start with{' '}
-          <code className="text-green-400">permissions: {'{}'}</code> (empty) and add only what's needed.
+          <code className="text-success">permissions: {'{}'}</code> (empty) and add only what's needed.
         </p>
         <CodeBlock code={permExample} language="yaml" />
 
-        <h3 className="text-lg font-bold mb-2 mt-6">Pin Actions to Full SHA</h3>
-        <p className="text-gray-400 mb-3">
+        <h3 className="text-lg font-bold mb-2 mt-6 text-ot-text">Pin Actions to Full SHA</h3>
+        <p className="text-ot-muted mb-3">
           Use the full 40-character commit SHA. Add a comment with the version for readability.
           Dependabot can automate updates.
         </p>
         <CodeBlock code={pinExample} language="yaml" />
 
-        <h3 className="text-lg font-bold mb-2 mt-6">Protect Against Script Injection</h3>
-        <p className="text-gray-400 mb-3">
-          Never interpolate GitHub context values directly in <code className="text-green-400">run:</code>{' '}
+        <h3 className="text-lg font-bold mb-2 mt-6 text-ot-text">Protect Against Script Injection</h3>
+        <p className="text-ot-muted mb-3">
+          Never interpolate GitHub context values directly in <code className="text-success">run:</code>{' '}
           blocks. Pass them through environment variables instead.
         </p>
         <CodeBlock code={injectionExample} language="yaml" />
       </section>
 
       <section>
-        <h2 className="text-2xl font-bold mb-4">Hardening Checklist</h2>
+        <h2 className="text-2xl font-bold mb-4 text-ot-text">Hardening Checklist</h2>
         <Checklist items={[
           'Set permissions: {} at workflow level, narrow per-job',
           'Pin all actions to full SHA with version comments',
@@ -92,9 +85,10 @@ export function GitHubActions() {
       </section>
 
       <section>
-        <h2 className="text-2xl font-bold mb-4">Related Challenges</h2>
-        <div className="grid grid-cols-2 gap-3">
-          {[
+        <h2 className="text-2xl font-bold mb-4 text-ot-text">Related Challenges</h2>
+        <RelatedChallenges
+          columns={2}
+          items={[
             { id: 'secrets-leak', label: 'Secrets Leak' },
             { id: 'permissions-overkill', label: 'Permissions Overkill' },
             { id: 'unsafe-deps', label: 'Unsafe Dependencies' },
@@ -107,47 +101,9 @@ export function GitHubActions() {
             { id: 'artifact-tampering', label: 'Artifact Tampering' },
             { id: 'script-injection', label: 'Script Injection' },
             { id: 'oidc-misconfig', label: 'OIDC Misconfig' },
-          ].map((c) => (
-            <Link key={c.id} to={`/challenges/${c.id}`} className="text-sm text-gray-400 hover:text-green-400 transition-colors px-3 py-2 rounded-lg bg-dark-800 border border-dark-600 hover:border-green-500/30">
-              {c.label}
-            </Link>
-          ))}
-        </div>
+          ]}
+        />
       </section>
-    </div>
-  );
-}
-
-function Vuln({ num, title, description, bad, good }: { num: number; title: string; description: string; bad: string; good: string }) {
-  return (
-    <div className="mb-6 bg-dark-800 rounded-xl border border-dark-600 overflow-hidden">
-      <div className="px-5 py-3 border-b border-dark-600">
-        <h3 className="font-bold"><span className="text-red-400 mr-2">{num}.</span>{title}</h3>
-        <p className="text-sm text-gray-400 mt-1">{description}</p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2">
-        <div className="p-4 bg-red-500/5 border-r border-dark-600">
-          <div className="text-xs font-bold text-red-400 uppercase tracking-wider mb-2">Vulnerable</div>
-          <pre className="text-xs text-gray-300 whitespace-pre-wrap leading-relaxed">{bad}</pre>
-        </div>
-        <div className="p-4 bg-green-500/5">
-          <div className="text-xs font-bold text-green-400 uppercase tracking-wider mb-2">Secure</div>
-          <pre className="text-xs text-gray-300 whitespace-pre-wrap leading-relaxed">{good}</pre>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Checklist({ items }: { items: string[] }) {
-  return (
-    <div className="bg-dark-800 rounded-xl border border-dark-600 p-5 space-y-2.5">
-      {items.map((item, i) => (
-        <label key={i} className="flex items-start gap-3 text-sm text-gray-300 cursor-default">
-          <input type="checkbox" className="mt-1 rounded border-dark-600 bg-dark-700 text-green-500 focus:ring-green-500/50" readOnly />
-          {item}
-        </label>
-      ))}
     </div>
   );
 }

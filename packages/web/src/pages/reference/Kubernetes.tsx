@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Checklist, RefHeader, RelatedChallenges, Vuln } from '../../components/Reference.js';
 import { CodeBlock } from '../../components/CodeBlock.js';
 
 const vuln1_bad = 'apiVersion: v1\nkind: Pod\nspec:\n  containers:\n  - name: app\n    image: myapp\n    securityContext:\n      privileged: true';
@@ -22,20 +22,13 @@ const rbac = 'apiVersion: rbac.authorization.k8s.io/v1\nkind: Role\nmetadata:\n 
 export function Kubernetes() {
   return (
     <div className="space-y-10">
-      <div>
-        <Link to="/reference" className="text-sm text-gray-500 hover:text-gray-300 transition-colors mb-4 inline-block">
-          ← Reference
-        </Link>
-        <h1 className="text-3xl font-bold mb-3">Kubernetes Security</h1>
-        <p className="text-gray-400 text-lg">
-          Kubernetes orchestrates containers at scale, but its complex configuration surface creates
-          many opportunities for misconfiguration. A single privileged pod or overly broad RBAC rule
-          can compromise an entire cluster.
-        </p>
-      </div>
+      <RefHeader
+        title="Kubernetes Security"
+        lede="Kubernetes orchestrates containers at scale, but its complex configuration surface creates many opportunities for misconfiguration. A single privileged pod or overly broad RBAC rule can compromise an entire cluster."
+      />
 
       <section>
-        <h2 className="text-2xl font-bold mb-4">Common Vulnerabilities</h2>
+        <h2 className="text-2xl font-bold mb-4 text-ot-text">Common Vulnerabilities</h2>
         <Vuln num={1} title="Privileged Pods" description="Running pods in privileged mode gives them full access to the host kernel, devices, and filesystem. This is equivalent to root on the node." bad={vuln1_bad} good={vuln1_good} />
         <Vuln num={2} title="Missing Network Policies" description="Without NetworkPolicies, all pods can communicate with each other by default. A compromised pod can reach every service in the cluster." bad={vuln2_bad} good={vuln2_good} />
         <Vuln num={3} title="RBAC Privilege Escalation" description="Overly broad ClusterRoleBindings or wildcard permissions allow users to escalate privileges, create new roles, or access all secrets." bad={vuln3_bad} good={vuln3_good} />
@@ -43,29 +36,29 @@ export function Kubernetes() {
       </section>
 
       <section>
-        <h2 className="text-2xl font-bold mb-4">Secure Patterns</h2>
+        <h2 className="text-2xl font-bold mb-4 text-ot-text">Secure Patterns</h2>
 
-        <h3 className="text-lg font-bold mb-2">Pod Security Standards</h3>
-        <p className="text-gray-400 mb-3">
+        <h3 className="text-lg font-bold mb-2 text-ot-text">Pod Security Standards</h3>
+        <p className="text-ot-muted mb-3">
           Use Pod Security Admission to enforce baseline or restricted profiles at the namespace level.
         </p>
         <CodeBlock code={podSecurity} language="yaml" />
 
-        <h3 className="text-lg font-bold mb-2 mt-6">Network Segmentation</h3>
-        <p className="text-gray-400 mb-3">
+        <h3 className="text-lg font-bold mb-2 text-ot-text mt-6">Network Segmentation</h3>
+        <p className="text-ot-muted mb-3">
           Define default-deny policies and explicitly allow only required communication paths.
         </p>
         <CodeBlock code={networkSeg} language="yaml" />
 
-        <h3 className="text-lg font-bold mb-2 mt-6">Least-Privilege RBAC</h3>
-        <p className="text-gray-400 mb-3">
+        <h3 className="text-lg font-bold mb-2 text-ot-text mt-6">Least-Privilege RBAC</h3>
+        <p className="text-ot-muted mb-3">
           Create namespace-scoped roles with only the verbs and resources needed.
         </p>
         <CodeBlock code={rbac} language="yaml" />
       </section>
 
       <section>
-        <h2 className="text-2xl font-bold mb-4">Hardening Checklist</h2>
+        <h2 className="text-2xl font-bold mb-4 text-ot-text">Hardening Checklist</h2>
         <Checklist items={[
           'Enforce Pod Security Standards (restricted profile)',
           'Set allowPrivilegeEscalation: false on all containers',
@@ -83,53 +76,15 @@ export function Kubernetes() {
       </section>
 
       <section>
-        <h2 className="text-2xl font-bold mb-4">Related Challenges</h2>
-        <div className="grid grid-cols-1 gap-3">
-          {[
+        <h2 className="text-2xl font-bold mb-4 text-ot-text">Related Challenges</h2>
+        <RelatedChallenges
+          items={[
             { id: 'k8s-privileged-pod', label: 'Privileged Pod' },
             { id: 'k8s-no-network-policy', label: 'No Network Policy' },
             { id: 'k8s-rbac-escalation', label: 'RBAC Escalation' },
-          ].map((c) => (
-            <Link key={c.id} to={`/challenges/${c.id}`} className="text-sm text-gray-400 hover:text-green-400 transition-colors px-3 py-2 rounded-lg bg-dark-800 border border-dark-600 hover:border-green-500/30">
-              {c.label}
-            </Link>
-          ))}
-        </div>
+          ]}
+        />
       </section>
-    </div>
-  );
-}
-
-function Vuln({ num, title, description, bad, good }: { num: number; title: string; description: string; bad: string; good: string }) {
-  return (
-    <div className="mb-6 bg-dark-800 rounded-xl border border-dark-600 overflow-hidden">
-      <div className="px-5 py-3 border-b border-dark-600">
-        <h3 className="font-bold"><span className="text-red-400 mr-2">{num}.</span>{title}</h3>
-        <p className="text-sm text-gray-400 mt-1">{description}</p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2">
-        <div className="p-4 bg-red-500/5 border-r border-dark-600">
-          <div className="text-xs font-bold text-red-400 uppercase tracking-wider mb-2">Vulnerable</div>
-          <pre className="text-xs text-gray-300 whitespace-pre-wrap leading-relaxed">{bad}</pre>
-        </div>
-        <div className="p-4 bg-green-500/5">
-          <div className="text-xs font-bold text-green-400 uppercase tracking-wider mb-2">Secure</div>
-          <pre className="text-xs text-gray-300 whitespace-pre-wrap leading-relaxed">{good}</pre>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Checklist({ items }: { items: string[] }) {
-  return (
-    <div className="bg-dark-800 rounded-xl border border-dark-600 p-5 space-y-2.5">
-      {items.map((item, i) => (
-        <label key={i} className="flex items-start gap-3 text-sm text-gray-300 cursor-default">
-          <input type="checkbox" className="mt-1 rounded border-dark-600 bg-dark-700 text-green-500 focus:ring-green-500/50" readOnly />
-          {item}
-        </label>
-      ))}
     </div>
   );
 }

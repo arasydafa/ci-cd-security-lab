@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-yaml';
 import 'prismjs/components/prism-bash';
+import { Check } from 'lucide-react';
 
 interface CodeBlockProps {
   code: string;
@@ -35,10 +36,10 @@ export function CodeBlock({ code, language = 'yaml', showLineNumbers = false, cl
         <span className="text-xs text-ot-muted uppercase tracking-wider">{language}</span>
         <button
           onClick={handleCopy}
-          className="text-xs text-ot-muted hover:text-ot-text transition-colors opacity-0 group-hover:opacity-100"
+          className="inline-flex items-center gap-1 text-xs text-ot-muted hover:text-ot-text transition-colors opacity-0 group-hover:opacity-100"
           aria-label="Copy code"
         >
-          {copied ? '✓ Copied' : 'Copy'}
+          {copied ? <><Check size={12} aria-hidden /> Copied</> : 'Copy'}
         </button>
       </div>
 
