@@ -8,6 +8,8 @@ const manager = new ChallengeManager();
 const SimulateSchema = z.object({
   challengeId: z.string().min(1),
   workflowYaml: z.string().optional(),
+  hintsUsed: z.number().int().min(0).optional(),
+  elapsedMs: z.number().min(0).optional(),
 });
 
 // POST /api/v1/simulate — run a workflow simulation
@@ -25,10 +27,10 @@ router.post('/', async (req, res) => {
     return;
   }
 
-  const { challengeId, workflowYaml } = parsed.data;
+  const { challengeId, workflowYaml, hintsUsed, elapsedMs } = parsed.data;
 
   try {
-    const result = await manager.runSimulation(challengeId, workflowYaml);
+    const result = await manager.runSimulation(challengeId, workflowYaml, hintsUsed ?? 0, elapsedMs);
     res.json({ data: result });
   } catch (error) {
     res.status(400).json({
