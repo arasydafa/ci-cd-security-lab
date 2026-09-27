@@ -1,3 +1,6 @@
-# Hint 1: Static vs OIDC
+# Hint 1: Two missing pieces
 
-Look for hardcoded `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in the workflow. These should be replaced with OIDC-based authentication using `role-to-assume`.
+This workflow fails OIDC twice. First, `configure-aws-credentials` asks for a
+role but the workflow grants no `id-token: write`, so no OIDC token exists.
+Second, the trust policy `sub` is `repo:my-org/*` — a wildcard that admits
+every repository in the org.

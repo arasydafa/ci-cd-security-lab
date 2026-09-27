@@ -31,6 +31,9 @@ const vuln9_good = 'jobs:\n  deploy-prod:\n    runs-on: ubuntu-latest\n    envir
 const vuln10_bad = 'jobs:\n  publish:\n    steps:\n      - run: npm publish  # no proof these bytes came from this pipeline';
 const vuln10_good = 'permissions:\n  id-token: write\n  attestations: write\njobs:\n  publish:\n    steps:\n      - uses: anchore/sbom-action@v0\n      - uses: actions/attest@v4\n        with:\n          subject-path: dist/**\n      - run: npm publish';
 
+const vuln11_bad = '- run: echo "${{ toJSON(secrets) }}"  # every secret, one log line, forever';
+const vuln11_good = '- name: Deploy\n  env:\n    DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}  # one secret, one step\n  run: ./deploy.sh';
+
 const permExample = 'name: CI\non: push\npermissions: {}  # Start empty\n\njobs:\n  test:\n    permissions:\n      contents: read\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm test\n\n  deploy:\n    permissions:\n      contents: read\n      id-token: write   # For OIDC\n      packages: write   # For GHCR\n    needs: test\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: ./deploy.sh';
 
 const pinExample = '# Pin to SHA, not tag\n- uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1\n- uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4.0.2\n\n# Add to .github/dependabot.yml to auto-update pins\nversion: 2\nupdates:\n  - package-ecosystem: "github-actions"\n    directory: "/"\n    schedule:\n      interval: "weekly"';
@@ -44,6 +47,10 @@ const pwnExample = '# PWN REQUEST — fork code with base secrets (never do this
 const envExample = '# UNGATED — any push that reaches this job ships to production\njobs:\n  deploy-prod:\n    runs-on: ubuntu-latest\n    steps:\n      - run: ./deploy.sh --target prod\n\n# GATED — pauses for reviewers + branch policy (set in Settings > Environments)\njobs:\n  deploy-prod:\n    runs-on: ubuntu-latest\n    environment: production\n    steps:\n      - run: ./deploy.sh --target prod';
 
 const attestExample = '# Attest every release artifact + ship an SBOM\npermissions:\n  contents: read\n  id-token: write      # keyless signing via OIDC\n  attestations: write  # persist the attestation\n\nsteps:\n  - uses: anchore/sbom-action@v0\n  - uses: actions/attest@v4\n    with:\n      subject-path: dist/**\n  - run: npm publish';
+
+const oidcExample = '# COMPLETE OIDC — token permission plus scoped trust (both required)\npermissions:\n  contents: read\n  id-token: write  # mints the OIDC token for role assumption\n\nsteps:\n  - uses: aws-actions/configure-aws-credentials@v4\n    with:\n      role-to-assume: arn:aws:iam::123456789012:role/deploy\n      aws-region: us-east-1\n\n# Trust policy (IAM side): admit exactly one repo and branch\n# "StringEquals": {"token.actions.githubusercontent.com:sub": "repo:org/app:ref:refs/heads/main"}';
+
+const lifecycleExample = '# Secrets lifecycle: scope per step, mask computed values, rotate exposed ones\n- name: Deploy\n  env:\n    DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}  # one secret, one step\n  run: ./deploy.sh\n\n# Never serialize the whole context: echo "${{ toJSON(secrets) }}" prints everything\n# Prefer short-lived credentials (OIDC) over static tokens that never expire';
 
 export function GitHubActions() {
   return (
@@ -65,6 +72,7 @@ export function GitHubActions() {
         <Vuln num={8} title="Pwn Requests via pull_request_target" description="Checking out fork code under pull_request_target executes attacker code with a write token and secrets. Checkout v7+ refuses this by default; older pins stay exploitable." bad={vuln8_bad} good={vuln8_good} />
         <Vuln num={9} title="Ungated Production Deploys" description="A deploy job with no environment: key skips required reviewers, wait timers, and branch policies — any push that reaches it ships to production." bad={vuln9_bad} good={vuln9_good} />
         <Vuln num={10} title="Unattested Releases" description="Published artifacts with no provenance or SBOM give consumers no way to tell your bytes from an impostor substitution." bad={vuln10_bad} good={vuln10_good} />
+        <Vuln num={11} title="Secrets Mass Exposure" description="Serializing the whole secrets context prints every secret at once. One log line then exposes the full lifetime of all credentials." bad={vuln11_bad} good={vuln11_good} />
       </section>
 
       <section>
@@ -122,6 +130,22 @@ export function GitHubActions() {
           stay visible.
         </p>
         <CodeBlock code={attestExample} language="yaml" />
+
+        <h3 className="text-lg font-bold mb-2 mt-6 text-ot-text">Wire Real OIDC: Permission Plus Scoped Trust</h3>
+        <p className="text-ot-muted mb-3">
+          OIDC needs both halves: the workflow permission that mints the token, and a
+          trust policy that admits exactly one repository and branch. A wildcard subject
+          delegates your role to strangers.
+        </p>
+        <CodeBlock code={oidcExample} language="yaml" />
+
+        <h3 className="text-lg font-bold mb-2 mt-6 text-ot-text">Run a Secrets Lifecycle</h3>
+        <p className="text-ot-muted mb-3">
+          Create secrets in a manager, distribute one per step, mask computed values,
+          and rotate anything that ever touched logs. Static credentials work until
+          manually revoked — assume exposed ones already leaked.
+        </p>
+        <CodeBlock code={lifecycleExample} language="yaml" />
       </section>
 
       <section>
@@ -141,6 +165,8 @@ export function GitHubActions() {
           'Never check out fork refs under pull_request_target',
           'Gate every production deploy behind a protected environment',
           'Attest release artifacts and ship an SBOM',
+          'Scope OIDC trust to one repo and branch — never repo:org/*',
+          'Reference single secrets per step; never serialize the secrets context',
         ]} />
       </section>
 
@@ -165,6 +191,7 @@ export function GitHubActions() {
             { id: 'pr-target-pwn', label: 'Pwn Request' },
             { id: 'ungated-prod', label: 'Ungated Prod' },
             { id: 'slsa-provenance', label: 'Prove the Build' },
+            { id: 'secrets-lifecycle', label: 'Secrets Lifecycle' },
           ]}
         />
       </section>

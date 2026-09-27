@@ -1,4 +1,4 @@
-import type { Job, SecurityFinding, Step, WorkflowFile } from '@cicd-lab/shared';
+import type { Job, PermissionsConfig, SecurityFinding, Step, WorkflowFile } from '@cicd-lab/shared';
 
 export type RuleSeverity = SecurityFinding['severity'];
 
@@ -231,6 +231,8 @@ const hardcodedCredential = defineRule({
     const seen = new Set<string>();
     for (const { step } of eachStep(workflow)) {
       for (const { text } of runLines(step)) {
+        // OIDC issuer URLs in trust policies are identity metadata, not credentials.
+        if (/token\.actions\.githubusercontent\.com/i.test(text)) continue;
         const m = text.match(CRED_KEY_RE);
         if (m && !m[3].includes('${{')) flag(`step "${step.name || 'unnamed'}"`, m[1], text.trim(), seen);
       }
@@ -729,6 +731,116 @@ const unsignedImagePush = defineRule({
   },
 });
 
+const OIDC_SUB_RE = /token\.actions\.githubusercontent\.com:sub/i;
+
+const broadOidcTrust = defineRule({
+  id: 'broad-oidc-trust',
+  severity: 'high',
+  category: 'permissions',
+  summary: 'OIDC trust policy allows more than the deploying repo',
+  whyItMatters:
+    'A wildcard sub lets any repository in the organization mint tokens for your role: a malicious repo assumes it and reaches your cloud resources with a trusted identity.',
+  fixHint:
+    'Scope the sub condition to one repository and ref, e.g. repo:org/app:ref:refs/heads/main with StringEquals.',
+  reference: GHA_REF,
+  detect: ({ workflow, rawYaml }) => {
+    const out: RuleFinding[] = [];
+    for (const { step } of eachStep(workflow)) {
+      if (!step.run) continue;
+      for (const { text } of runLines(step)) {
+        if (!OIDC_SUB_RE.test(text)) continue;
+        const value = text.split('sub')[1] || '';
+        if (/\*/.test(value)) {
+          out.push(
+            makeFinding(
+              broadOidcTrust,
+              `Overly broad OIDC trust: sub allows more than one repo/ref in step "${step.name || 'unnamed'}"`,
+              text.trim(),
+              { workflow, rawYaml },
+            ),
+          );
+        }
+      }
+    }
+    return out;
+  },
+});
+
+const CONFIGURE_AWS_RE = /configure-aws-credentials@/i;
+
+function hasIdTokenWrite(workflow: WorkflowFile): boolean {
+  const top = workflow.permissions;
+  if (top && typeof top === 'object' && (top as PermissionsConfig)['id-token'] === 'write') {
+    return true;
+  }
+  return Object.values(workflow.jobs).some((j) => {
+    const p = (j as Job).permissions;
+    return !!p && typeof p === 'object' && (p as PermissionsConfig)['id-token'] === 'write';
+  });
+}
+
+const oidcMissingIdToken = defineRule({
+  id: 'oidc-missing-id-token',
+  severity: 'high',
+  category: 'permissions',
+  summary: 'OIDC role assumption without id-token: write',
+  whyItMatters:
+    'Without id-token: write GitHub mints no OIDC token, so the role assumption fails at runtime — or teams work around it by reintroducing static keys.',
+  fixHint: 'Add id-token: write to the workflow or job permissions alongside role-to-assume.',
+  reference: GHA_REF,
+  detect: ({ workflow, rawYaml }) => {
+    if (hasIdTokenWrite(workflow)) return [];
+    const out: RuleFinding[] = [];
+    for (const { step } of eachStep(workflow)) {
+      if (
+        step.uses &&
+        CONFIGURE_AWS_RE.test(step.uses) &&
+        step.with &&
+        typeof step.with['role-to-assume'] === 'string'
+      ) {
+        out.push(
+          makeFinding(
+            oidcMissingIdToken,
+            `OIDC role assumption in step "${step.name || 'unnamed'}" has no id-token: write permission`,
+            step.uses,
+            { workflow, rawYaml },
+          ),
+        );
+      }
+    }
+    return out;
+  },
+});
+
+const secretsJsonDump = defineRule({
+  id: 'secrets-json-dump',
+  severity: 'high',
+  category: 'secrets',
+  summary: 'Entire secrets context dumped to logs',
+  whyItMatters:
+    'toJSON(secrets) prints every secret available to the job in one line, readable by anyone with run access and stored as long as the logs.',
+  fixHint: 'Reference single secrets per step via env: and never serialize the whole secrets context.',
+  reference: GHA_REF,
+  detect: ({ workflow, rawYaml }) => {
+    const out: RuleFinding[] = [];
+    for (const { step } of eachStep(workflow)) {
+      for (const { text } of runLines(step)) {
+        if (/toJSON\s*\(\s*secrets\s*\)/.test(text)) {
+          out.push(
+            makeFinding(
+              secretsJsonDump,
+              `Whole secrets context serialized in step "${step.name || 'unnamed'}"`,
+              text.trim(),
+              { workflow, rawYaml },
+            ),
+          );
+        }
+      }
+    }
+    return out;
+  },
+});
+
 /** Registry in stable evaluation order. */
 export const RULES: DetectionRule[] = [
   secretsEchoExpression,
@@ -748,6 +860,9 @@ export const RULES: DetectionRule[] = [
   unpinnedBaseImage,
   missingProvenance,
   unsignedImagePush,
+  broadOidcTrust,
+  oidcMissingIdToken,
+  secretsJsonDump,
 ];
 
 export function runRules(ctx: RuleContext): RuleFinding[] {

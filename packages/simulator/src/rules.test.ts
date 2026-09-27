@@ -265,6 +265,48 @@ describe('rule registry', () => {
     assert.ok(!ruleIds(noPush).includes('unsigned-image-push'));
   });
 
+  it('flags broad OIDC trust, accepts scoped sub', () => {
+    const bad = BASE(
+      '    steps:\n      - run: |\n          aws iam update-assume-role-policy --role-name deploy --policy-document file://trust.json\n          echo {"token.actions.githubusercontent.com:sub": "repo:my-org/*"}',
+    );
+    assert.ok(ruleIds(bad).includes('broad-oidc-trust'));
+    const good = BASE(
+      '    steps:\n      - run: |\n          aws iam update-assume-role-policy --role-name deploy --policy-document file://trust.json\n          echo {"token.actions.githubusercontent.com:sub": "repo:my-org/my-app:ref:refs/heads/main"}',
+    );
+    assert.ok(!ruleIds(good).includes('broad-oidc-trust'));
+    // Trust-policy identity lines are not credentials.
+    assert.ok(!ruleIds(good).includes('hardcoded-credential'));
+    assert.ok(!ruleIds(bad).includes('hardcoded-credential'));
+  });
+
+  it('flags OIDC role assumption without id-token: write', () => {
+    const bad = [
+      'name: Deploy',
+      'on: push',
+      'permissions:',
+      '  contents: read',
+      'jobs:',
+      '  deploy:',
+      '    runs-on: ubuntu-latest',
+      '    steps:',
+      '      - uses: aws-actions/configure-aws-credentials@v4',
+      '        with:',
+      '          role-to-assume: arn:aws:iam::123456789012:role/deploy',
+      '          aws-region: us-east-1',
+    ].join('\n');
+    assert.ok(ruleIds(bad).includes('oidc-missing-id-token'));
+    const topLevel = bad.replace('  contents: read', '  contents: read\n  id-token: write');
+    assert.ok(!ruleIds(topLevel).includes('oidc-missing-id-token'));
+    const jobLevel = bad.replace('    runs-on: ubuntu-latest', '    runs-on: ubuntu-latest\n    permissions:\n      id-token: write');
+    assert.ok(!ruleIds(jobLevel).includes('oidc-missing-id-token'));
+  });
+
+  it('flags whole-secrets dumps, not single references', () => {
+    const bad = BASE('    steps:\n      - run: echo "${{ toJSON(secrets) }}"');
+    assert.ok(ruleIds(bad).includes('secrets-json-dump'));
+    assert.ok(!ruleIds(BASE('    steps:\n      - run: echo "${{ toJSON(github) }}"')).includes('secrets-json-dump'));
+  });
+
   it('lineOf maps snippets to 1-based lines', () => {
     assert.equal(lineOf('a\nb\nc', 'b'), 2);
     assert.equal(lineOf('a\nb', 'zzz'), undefined);
