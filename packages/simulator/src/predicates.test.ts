@@ -162,4 +162,50 @@ describe('predicates', () => {
       assert.equal(checkPredicate(vulnerable, c.predicate, c.rules).passed, false, `${c.id} vulnerable`);
     }
   });
+
+  it('fase 4a (cache flow): solutions pass, vulnerable fail', () => {
+    const cases: { level: string; id: string; predicate: string; rules?: string[] }[] = [
+      {
+        level: 'intermediate',
+        id: '10-cache-poisoning',
+        predicate: 'no-rule-findings',
+        rules: ['cache-in-publish'],
+      },
+      {
+        level: 'advanced',
+        id: '06-pr-target-pwn',
+        predicate: 'no-rule-findings',
+        rules: ['pr-target-untrusted-checkout'],
+      },
+      {
+        level: 'intermediate',
+        id: '11-ungated-prod',
+        predicate: 'no-rule-findings',
+        rules: ['prod-deploy-without-environment'],
+      },
+    ];
+    for (const c of cases) {
+      const solution = loadChallengeFile(c.level, c.id, 'solution');
+      const vulnerable = loadChallengeFile(c.level, c.id, 'vulnerable');
+      assert.equal(checkPredicate(solution, c.predicate, c.rules).passed, true, `${c.id} solution`);
+      assert.equal(checkPredicate(vulnerable, c.predicate, c.rules).passed, false, `${c.id} vulnerable`);
+    }
+  });
+
+  it('fase 4a: cosmetic evasions still fail', () => {
+    // Renaming the cache key does not remove the publish-context restore.
+    const cacheSolution = loadChallengeFile('intermediate', '10-cache-poisoning', 'solution');
+    const cacheEvasion = cacheSolution.replace(
+      '      - name: Install dependencies',
+      '      - uses: actions/cache@v4\n        with:\n          path: ~/.npm\n          key: totally-different-key\n\n      - name: Install dependencies',
+    );
+    assert.equal(checkPredicate(cacheEvasion, 'no-rule-findings', ['cache-in-publish']).passed, false);
+    // A non-production environment name does not gate a prod deploy.
+    const prodSolution = loadChallengeFile('intermediate', '11-ungated-prod', 'solution');
+    const prodEvasion = prodSolution.replace('environment: production', 'environment: staging');
+    assert.equal(
+      checkPredicate(prodEvasion, 'no-rule-findings', ['prod-deploy-without-environment']).passed,
+      false,
+    );
+  });
 });

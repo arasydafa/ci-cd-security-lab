@@ -1,0 +1,29 @@
+id: cache-poisoning
+title: "Poisoned Cache, Trusted Release"
+level: intermediate
+topic: github-actions
+category: security
+estimated_time: 15m
+points: 150
+description: |
+  This release workflow restores a shared dependency cache before publishing to npm.
+  A poisoned cache entry written by an untrusted run ships straight into the release.
+  Remove caching from the release job and build dependencies fresh.
+tags: [cache, supply-chain, release]
+prerequisites: [unsafe-deps, artifact-tampering]
+objectives:
+  - Explain how shared caches let untrusted runs poison release builds
+  - Remove cache restore and save steps from the release job
+  - Verify the release installs dependencies fresh with no cache restore
+references:
+  - page: github-actions
+    label: Cache isolation and poisoning guide
+validation:
+  type: workflow-check
+  expected:
+    # Semantic check: no cache usage anywhere in a publish context.
+    - predicate: no-rule-findings
+      rules: [cache-in-publish]
+scoring:
+  hints_used_penalty: 30
+  time_bonus: 75

@@ -1,0 +1,29 @@
+id: ungated-prod
+title: "Ungated Prod"
+level: intermediate
+topic: github-actions
+category: security
+estimated_time: 15m
+points: 150
+description: |
+  This workflow deploys to production on every push to main with no
+  environment gate. No required reviewers, no wait timer, no branch policy —
+  any merged commit reaches production unreviewed. Gate the deploy job.
+tags: [deployments, environments, gating]
+prerequisites: [permissions-overkill]
+objectives:
+  - Explain why production deploys need an environment gate with required reviewers
+  - Add environment production to the prod deploy job
+  - Verify unreviewed pushes can no longer reach production ungated
+references:
+  - page: github-actions
+    label: Environment protection guide
+validation:
+  type: workflow-check
+  expected:
+    # Semantic check: prod deploy jobs must declare an environment gate.
+    - predicate: no-rule-findings
+      rules: [prod-deploy-without-environment]
+scoring:
+  hints_used_penalty: 30
+  time_bonus: 75

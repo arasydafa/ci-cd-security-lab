@@ -674,6 +674,79 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
     "hintsPenalty": 30
   },
   {
+    "id": "cache-poisoning",
+    "title": "Poisoned Cache, Trusted Release",
+    "level": "intermediate",
+    "topic": "github-actions",
+    "points": 150,
+    "estimatedTime": "15m",
+    "description": "This release workflow restores a shared dependency cache before publishing to npm.\nA poisoned cache entry written by an untrusted run ships straight into the release.\nRemove caching from the release job and build dependencies fresh.\n",
+    "tags": [
+      "cache",
+      "supply-chain",
+      "release"
+    ],
+    "prerequisites": [
+      "unsafe-deps",
+      "artifact-tampering"
+    ],
+    "objectives": [
+      "Explain how shared caches let untrusted runs poison release builds",
+      "Remove cache restore and save steps from the release job",
+      "Verify the release installs dependencies fresh with no cache restore"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "Cache isolation and poisoning guide"
+      }
+    ],
+    "scenario": "# Scenario: Poisoned Cache, Trusted Release\n\nYour release workflow publishes to npm on every GitHub release. To speed it up,\nsomeone added `actions/cache` to restore `~/.npm` before `npm ci`.\n\nThe problem: caches are **shared across runs**. An untrusted run (a fork PR, a\ncompromised dependency job) can write a poisoned entry under the same key. Your\nrelease job then restores attacker-controlled bytes and publishes them with\nproduction credentials attached.\n\nThis is not theoretical. In May 2026 attackers chained a `pull_request_target`\nmisconfiguration with cache poisoning across the fork-to-base trust boundary to\npublish malicious packages under a trusted identity (CVE-2026-45321).\n\n**Your mission:** Remove caching from the release job so every release installs\ndependencies fresh.\n\n## Key concepts\n- Cache entries are shared state, not trusted input\n- Release and publish jobs must not restore caches written by less-trusted runs\n- `npm ci` on a lockfile is reproducible without a cache\n",
+    "vulnerableWorkflow": "name: Release\n\non:\n  release:\n    types: [published]\n\npermissions:\n  contents: read\n  id-token: write\n\njobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Restore dependencies\n        uses: actions/cache@v4\n        with:\n          path: ~/.npm\n          key: npm-deps-${{ hashFiles('package-lock.json') }}\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Build\n        run: npm run build\n\n      - name: Publish to npm\n        run: npm publish --access public\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n",
+    "solutionWorkflow": "name: Release\n\non:\n  release:\n    types: [published]\n\npermissions:\n  contents: read\n  id-token: write\n\njobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Build\n        run: npm run build\n\n      - name: Publish to npm\n        run: npm publish --access public\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n",
+    "hints": [
+      "# Hint 1: Where the trust boundary breaks\n\nThe `actions/cache` step restores `~/.npm` using a key any run can compute:\n`npm-deps-${{ hashFiles('package-lock.json') }}`. Any workflow run in this\nrepository that saves under that key — including low-privilege ones — feeds\nbytes straight into your release build.\n",
+      "# Hint 2: The fix\n\nDelete the entire `actions/cache` step from the release job. Keep `npm ci` —\nwith a committed lockfile it is deterministic without a cache. As a rule:\nrelease and publish jobs restore no caches, ever.\n"
+    ],
+    "hintsPenalty": 30
+  },
+  {
+    "id": "ungated-prod",
+    "title": "Ungated Prod",
+    "level": "intermediate",
+    "topic": "github-actions",
+    "points": 150,
+    "estimatedTime": "15m",
+    "description": "This workflow deploys to production on every push to main with no\nenvironment gate. No required reviewers, no wait timer, no branch policy —\nany merged commit reaches production unreviewed. Gate the deploy job.\n",
+    "tags": [
+      "deployments",
+      "environments",
+      "gating"
+    ],
+    "prerequisites": [
+      "permissions-overkill"
+    ],
+    "objectives": [
+      "Explain why production deploys need an environment gate with required reviewers",
+      "Add environment production to the prod deploy job",
+      "Verify unreviewed pushes can no longer reach production ungated"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "Environment protection guide"
+      }
+    ],
+    "scenario": "# Scenario: Ungated Prod\n\nYour pipeline builds on every push to `main` and then deploys straight to\nproduction. There is no `environment:` on the deploy job, which means none of\nGitHub's deployment protections apply: no required reviewers, no wait timer,\nno branch policy, and production secrets are available to every run\nimmediately.\n\nAny commit that lands on `main` — including a compromised dependency update or\na mistaken merge — reaches production with zero human oversight.\n\n**Your mission:** Gate the production deploy job behind the `production`\nenvironment (required reviewers and branch policy are configured there in\nrepository Settings).\n\n## Key concepts\n- `environment: production` pauses the job until protection rules pass\n- Rules live in Settings, the workflow only names the environment\n- A missing environment name silently creates an unprotected one — use the exact name\n",
+    "vulnerableWorkflow": "name: Deploy\n\non:\n  push:\n    branches: [main]\n\npermissions:\n  contents: read\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Build\n        run: npm run build\n\n  deploy-prod:\n    runs-on: ubuntu-latest\n    needs: build\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Deploy to production\n        run: ./deploy.sh --target prod\n",
+    "solutionWorkflow": "name: Deploy\n\non:\n  push:\n    branches: [main]\n\npermissions:\n  contents: read\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Build\n        run: npm run build\n\n  deploy-prod:\n    runs-on: ubuntu-latest\n    needs: build\n    environment: production\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Deploy to production\n        run: ./deploy.sh --target prod\n",
+    "hints": [
+      "# Hint 1: What the gate enforces\n\nAn environment in repository Settings can require reviewers (up to 6 people\nor teams), a wait timer, and a deployment-branches policy. The job only\nstarts — and only receives the environment's secrets — after those rules\npass. Without the `environment:` key, none of that exists.\n",
+      "# Hint 2: The fix\n\nAdd `environment: production` to the `deploy-prod` job. Make sure the name\nmatches the protected environment in Settings exactly — a typo creates a\nbrand-new unprotected environment instead of gating anything.\n"
+    ],
+    "hintsPenalty": 30
+  },
+  {
     "id": "reusable-workflow-injection",
     "title": "Reusable Workflow Injection",
     "level": "advanced",
@@ -847,6 +920,43 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
     "hints": [
       "# Hint 1: How secrets leak in logs\n\n`echo ${{ secrets.X }}` directly prints the secret value. Even if you remove it later, the log entry persists. GitHub Actions logs are stored indefinitely and accessible to anyone with repository read access.\n",
       "# Hint 2: The fix\n\nRemove all `echo ${{ secrets.* }}` steps. If you must reference a secret, use `::add-mask::${{ secrets.X }}` FIRST to register it as a mask, then use it. The mask ensures the value is replaced with `***` in all subsequent output.\n"
+    ],
+    "hintsPenalty": 50
+  },
+  {
+    "id": "pr-target-pwn",
+    "title": "Pwn Request",
+    "level": "advanced",
+    "topic": "github-actions",
+    "points": 250,
+    "estimatedTime": "30m",
+    "description": "This workflow runs on pull_request_target and checks out the fork's code\nbefore running it. Any fork author gets code execution with a write token\nand repository secrets. Stop executing untrusted code in a privileged context.\n",
+    "tags": [
+      "pwn-request",
+      "pull-request-target",
+      "checkout"
+    ],
+    "prerequisites": [
+      "script-injection",
+      "self-hosted-risk"
+    ],
+    "objectives": [
+      "Explain how pull_request_target plus a fork checkout creates a pwn request",
+      "Move untrusted builds to the pull_request event or gate on trusted labels",
+      "Verify no fork-controlled ref is checked out or executed with secrets"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "Pwn requests and checkout protection guide"
+      }
+    ],
+    "scenario": "# Scenario: Pwn Request\n\nYour workflow triggers on `pull_request_target` so it can label PRs and post\nresults. To test the actual PR code, it checks out the fork's head commit —\nthen runs `npm ci` and `npm test` on it.\n\nThat combination is a **pwn request**: `pull_request_target` runs in the base\nrepository context with a write token and access to secrets, but the code it\nexecutes comes from the untrusted fork. Any fork author can run arbitrary code\nwith your secrets by opening a PR.\n\nSince June 2026 `actions/checkout` v7 refuses fork checkouts under\n`pull_request_target` by default — but older pins and manual `git fetch`\npatterns stay exploitable, and the design flaw remains yours to fix.\n\n**Your mission:** Stop executing fork code in the privileged context. Run\nuntrusted builds under the `pull_request` event instead.\n\n## Key concepts\n- `pull_request_target` = base code, write token, secrets available\n- `pull_request` (from forks) = fork code, read-only token, no secrets\n- Checking out `head.sha` or `pull/N/merge` under the target event crosses the trust boundary\n",
+    "vulnerableWorkflow": "name: PR Check\n\non:\n  pull_request_target:\n    types: [opened, synchronize]\n\npermissions:\n  contents: read\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          repository: ${{ github.event.pull_request.head.repo.full_name }}\n          ref: ${{ github.event.pull_request.head.sha }}\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Run tests\n        run: npm test\n",
+    "solutionWorkflow": "name: PR Check\n\non:\n  pull_request:\n    branches: [main]\n\npermissions:\n  contents: read\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Run tests\n        run: npm test\n",
+    "hints": [
+      "# Hint 1: Who runs what\n\n`pull_request_target` checks out your **base** branch by default and hands the\njob a write token plus secrets. The `with: repository/ref` override swaps in\nthe **fork's** code — so `npm ci` and `npm test` now execute attacker code\nwith your privileges.\n",
+      "# Hint 2: The fix\n\nRun tests under the `pull_request` event with a plain checkout — fork builds\nget a read-only token and no secrets. Reserve `pull_request_target` for\nmetadata-only work, or gate it on a maintainer-added `safe-to-test` label.\n"
     ],
     "hintsPenalty": 50
   }

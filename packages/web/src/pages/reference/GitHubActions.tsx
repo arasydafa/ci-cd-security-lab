@@ -19,11 +19,26 @@ const vuln5_good = '- name: Install\n  run: |\n    curl -sSL https://example.com
 const vuln6_bad = 'env:\n  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n  AWS_KEY: ${{ secrets.AWS_KEY }}\n  DB_PASS: ${{ secrets.DB_PASS }}\n  ALL_SECRETS: ${{ toJSON(secrets) }}';
 const vuln6_good = 'steps:\n  - name: Deploy\n    env:\n      AWS_KEY: ${{ secrets.AWS_KEY }}\n    run: deploy.sh\n  # Only pass secrets to the steps that need them';
 
+const vuln7_bad = 'on:\n  release:\n    types: [published]\njobs:\n  release:\n    steps:\n      - uses: actions/cache@v4  # shared across runs!\n        with:\n          path: ~/.npm\n          key: npm-deps-${{ hashFiles(\'package-lock.json\') }}\n      - run: npm publish';
+const vuln7_good = 'on:\n  release:\n    types: [published]\njobs:\n  release:\n    steps:\n      # No cache in release jobs — install fresh every time\n      - run: npm ci\n      - run: npm publish';
+
+const vuln8_bad = 'on: pull_request_target\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          repository: ${{ github.event.pull_request.head.repo.full_name }}\n          ref: ${{ github.event.pull_request.head.sha }}\n      - run: npm ci && npm test  # attacker code, your secrets';
+const vuln8_good = 'on: pull_request  # fork code, read-only token, no secrets\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm ci && npm test';
+
+const vuln9_bad = 'jobs:\n  deploy-prod:\n    runs-on: ubuntu-latest\n    steps:\n      - run: ./deploy.sh --target prod  # no gate: any push deploys';
+const vuln9_good = 'jobs:\n  deploy-prod:\n    runs-on: ubuntu-latest\n    environment: production  # reviewers + branch policy in Settings\n    steps:\n      - run: ./deploy.sh --target prod';
+
 const permExample = 'name: CI\non: push\npermissions: {}  # Start empty\n\njobs:\n  test:\n    permissions:\n      contents: read\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm test\n\n  deploy:\n    permissions:\n      contents: read\n      id-token: write   # For OIDC\n      packages: write   # For GHCR\n    needs: test\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: ./deploy.sh';
 
 const pinExample = '# Pin to SHA, not tag\n- uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1\n- uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4.0.2\n\n# Add to .github/dependabot.yml to auto-update pins\nversion: 2\nupdates:\n  - package-ecosystem: "github-actions"\n    directory: "/"\n    schedule:\n      interval: "weekly"';
 
 const injectionExample = '# DANGEROUS — direct interpolation\n- run: echo "${{ github.event.issue.body }}"\n\n# SAFE — env var indirection\n- run: echo "$ISSUE_BODY"\n  env:\n    ISSUE_BODY: ${{ github.event.issue.body }}';
+
+const cacheExample = '# Release jobs restore NO caches — poisoned entries ship with the release\n- run: npm ci       # fresh, deterministic from the lockfile\n- run: npm publish\n\n# If you must probe a cache, use lookup-only (never download untrusted bytes)\n- uses: actions/cache/restore@v4\n  with:\n    path: ~/.npm\n    key: npm-deps-${{ hashFiles(\'package-lock.json\') }}\n    lookup-only: true';
+
+const pwnExample = '# PWN REQUEST — fork code with base secrets (never do this)\non: pull_request_target\n- uses: actions/checkout@v4\n  with:\n    ref: ${{ github.event.pull_request.head.sha }}\n\n# SAFE — untrusted builds under pull_request (read-only, no secrets)\non: pull_request\n- uses: actions/checkout@v4\n# checkout v7+ also refuses fork checkouts under pull_request_target by default';
+
+const envExample = '# UNGATED — any push that reaches this job ships to production\njobs:\n  deploy-prod:\n    runs-on: ubuntu-latest\n    steps:\n      - run: ./deploy.sh --target prod\n\n# GATED — pauses for reviewers + branch policy (set in Settings > Environments)\njobs:\n  deploy-prod:\n    runs-on: ubuntu-latest\n    environment: production\n    steps:\n      - run: ./deploy.sh --target prod';
 
 export function GitHubActions() {
   return (
@@ -41,6 +56,9 @@ export function GitHubActions() {
         <Vuln num={4} title="Script Injection" description="User-controlled inputs (PR titles, issue bodies, branch names) injected into workflow scripts can execute arbitrary code." bad={vuln4_bad} good={vuln4_good} />
         <Vuln num={5} title="Unsafe Dependency Downloads" description="Downloading and executing scripts from external sources without verification. A compromised CDN or repo can inject malware." bad={vuln5_bad} good={vuln5_good} />
         <Vuln num={6} title="Excessive Environment Variable Exposure" description="Dumping all secrets into environment variables exposes them to every step, including third-party actions." bad={vuln6_bad} good={vuln6_good} />
+        <Vuln num={7} title="Cache Poisoning in Release Jobs" description="Caches are shared across runs. An entry poisoned by a low-privilege run is restored by the release job and shipped with production credentials — the chain behind CVE-2026-45321." bad={vuln7_bad} good={vuln7_good} />
+        <Vuln num={8} title="Pwn Requests via pull_request_target" description="Checking out fork code under pull_request_target executes attacker code with a write token and secrets. Checkout v7+ refuses this by default; older pins stay exploitable." bad={vuln8_bad} good={vuln8_good} />
+        <Vuln num={9} title="Ungated Production Deploys" description="A deploy job with no environment: key skips required reviewers, wait timers, and branch policies — any push that reaches it ships to production." bad={vuln9_bad} good={vuln9_good} />
       </section>
 
       <section>
@@ -66,6 +84,30 @@ export function GitHubActions() {
           blocks. Pass them through environment variables instead.
         </p>
         <CodeBlock code={injectionExample} language="yaml" />
+
+        <h3 className="text-lg font-bold mb-2 mt-6 text-ot-text">Keep Caches Out of Release Jobs</h3>
+        <p className="text-ot-muted mb-3">
+          Release and publish jobs must not restore caches written by less-trusted runs.
+          Since June 2026 untrusted triggers get a read-only cache, but shared entries from
+          other branches remain a poisoning vector — install fresh on every release.
+        </p>
+        <CodeBlock code={cacheExample} language="yaml" />
+
+        <h3 className="text-lg font-bold mb-2 mt-6 text-ot-text">Defuse Pwn Requests</h3>
+        <p className="text-ot-muted mb-3">
+          Run untrusted fork code under the <code className="text-success">pull_request</code> event
+          (read-only token, no secrets). Reserve <code className="text-success">pull_request_target</code> for
+          metadata-only work or gate it on a maintainer-added label.
+        </p>
+        <CodeBlock code={pwnExample} language="yaml" />
+
+        <h3 className="text-lg font-bold mb-2 mt-6 text-ot-text">Gate Production with Environments</h3>
+        <p className="text-ot-muted mb-3">
+          Name the protected environment in the job; configure required reviewers, wait timers,
+          and branch policy in repository Settings. A misspelled name silently creates an
+          unprotected environment instead.
+        </p>
+        <CodeBlock code={envExample} language="yaml" />
       </section>
 
       <section>
@@ -81,6 +123,9 @@ export function GitHubActions() {
           'Audit third-party actions before using them',
           'Run minimal, ephemeral runners for sensitive jobs',
           'Enable secret scanning and push protection',
+          'Restore no caches in release and publish jobs',
+          'Never check out fork refs under pull_request_target',
+          'Gate every production deploy behind a protected environment',
         ]} />
       </section>
 
@@ -101,6 +146,9 @@ export function GitHubActions() {
             { id: 'artifact-tampering', label: 'Artifact Tampering' },
             { id: 'script-injection', label: 'Script Injection' },
             { id: 'oidc-misconfig', label: 'OIDC Misconfig' },
+            { id: 'cache-poisoning', label: 'Cache Poisoning' },
+            { id: 'pr-target-pwn', label: 'Pwn Request' },
+            { id: 'ungated-prod', label: 'Ungated Prod' },
           ]}
         />
       </section>
