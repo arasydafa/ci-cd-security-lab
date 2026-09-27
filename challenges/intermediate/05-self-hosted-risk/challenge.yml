@@ -13,7 +13,9 @@ tags: [runners, isolation, supply-chain]
 validation:
   type: workflow-check
   expected:
-    - should_not_contain: ["self-hosted"]
+    # Semantic check: no persistent self-hosted runners.
+    - predicate: no-rule-findings
+      rules: [self-hosted-runner]
 scoring:
   hints_used_penalty: 30
   time_bonus: 75

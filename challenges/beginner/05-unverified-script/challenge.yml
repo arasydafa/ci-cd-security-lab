@@ -13,7 +13,9 @@ tags: [supply-chain, script-execution]
 validation:
   type: workflow-check
   expected:
-    - should_not_contain: ["curl | sh", "curl | bash", "wget | sh"]
+    # Semantic check: remote scripts must never be piped straight to a shell.
+    - predicate: no-rule-findings
+      rules: [curl-pipe-shell, wget-pipe-shell]
 scoring:
   hints_used_penalty: 25
   time_bonus: 50

@@ -108,4 +108,58 @@ describe('predicates', () => {
     const check = predicateCheck('no-such-predicate', { workflow, rawYaml: yaml });
     assert.equal(check, null);
   });
+
+  it('migrated challenges: solutions pass, vulnerable fail', () => {
+    const cases: { level: string; id: string; predicate: string; rules?: string[] }[] = [
+      { level: 'advanced', id: '01-reusable-workflow-injection', predicate: 'no-interpolation-in-run' },
+      {
+        level: 'beginner',
+        id: '01-secrets-leak',
+        predicate: 'no-rule-findings',
+        rules: ['aws-access-key', 'hardcoded-credential', 'secrets-echo-expression'],
+      },
+      {
+        level: 'beginner',
+        id: '04-error-swallowing',
+        predicate: 'no-rule-findings',
+        rules: ['error-swallow'],
+      },
+      {
+        level: 'beginner',
+        id: '05-unverified-script',
+        predicate: 'no-rule-findings',
+        rules: ['curl-pipe-shell', 'wget-pipe-shell'],
+      },
+      {
+        level: 'beginner',
+        id: '06-env-dumping',
+        predicate: 'no-rule-findings',
+        rules: ['env-dump'],
+      },
+      {
+        level: 'intermediate',
+        id: '01-supply-chain-attack',
+        predicate: 'no-rule-findings',
+        rules: ['env-dump'],
+      },
+      {
+        level: 'intermediate',
+        id: '04-oidc-misconfig',
+        predicate: 'no-rule-findings',
+        rules: ['aws-access-key', 'hardcoded-credential'],
+      },
+      {
+        level: 'intermediate',
+        id: '05-self-hosted-risk',
+        predicate: 'no-rule-findings',
+        rules: ['self-hosted-runner'],
+      },
+    ];
+    for (const c of cases) {
+      const solution = loadChallengeFile(c.level, c.id, 'solution');
+      const vulnerable = loadChallengeFile(c.level, c.id, 'vulnerable');
+      assert.equal(checkPredicate(solution, c.predicate, c.rules).passed, true, `${c.id} solution`);
+      assert.equal(checkPredicate(vulnerable, c.predicate, c.rules).passed, false, `${c.id} vulnerable`);
+    }
+  });
 });

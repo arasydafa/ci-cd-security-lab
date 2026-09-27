@@ -12,7 +12,11 @@ tags: [supply-chain, attacks, defense-in-depth]
 validation:
   type: workflow-check
   expected:
-    - should_not_contain: ["echo ${{ secrets", "curl -X POST", ">> src/"]
+    # Semantic check: no environment exfiltration. The tamper/write and
+    # exfil patterns stay as legacy substring checks (no AST rule yet).
+    - predicate: no-rule-findings
+      rules: [env-dump]
+    - should_not_contain: ["curl -X POST", ">> src/"]
 scoring:
   hints_used_penalty: 50
   time_bonus: 100

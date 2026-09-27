@@ -473,6 +473,35 @@ const missingPermissions = defineRule({
   },
 });
 
+const selfHostedRunner = defineRule({
+  id: 'self-hosted-runner',
+  severity: 'medium',
+  category: 'supply-chain',
+  summary: 'Jobs run on self-hosted runners',
+  whyItMatters:
+    'Persistent self-hosted runners keep filesystem, tool caches, and credentials between jobs — one malicious job can poison every later run on that machine.',
+  fixHint:
+    'Prefer ephemeral GitHub-hosted runners; when self-hosted is required, isolate the runner and wipe state after each job.',
+  detect: ({ workflow, rawYaml }) => {
+    const out: RuleFinding[] = [];
+    for (const [jobId, job] of Object.entries(workflow.jobs)) {
+      const runsOn = (job as Job)['runs-on'];
+      const labels = Array.isArray(runsOn) ? runsOn : typeof runsOn === 'string' ? [runsOn] : [];
+      if (labels.includes('self-hosted')) {
+        out.push(
+          makeFinding(
+            selfHostedRunner,
+            `Job "${jobId}" runs on a self-hosted runner`,
+            'self-hosted',
+            { workflow, rawYaml },
+          ),
+        );
+      }
+    }
+    return out;
+  },
+});
+
 /** Registry in stable evaluation order. */
 export const RULES: DetectionRule[] = [
   secretsEchoExpression,
@@ -486,6 +515,7 @@ export const RULES: DetectionRule[] = [
   unpinnedUses,
   prTargetCheckout,
   missingPermissions,
+  selfHostedRunner,
 ];
 
 export function runRules(ctx: RuleContext): RuleFinding[] {

@@ -14,7 +14,9 @@ validation:
   type: workflow-check
   expected:
     - should_contain: ["role-to-assume"]
-    - should_not_contain: ["AKIA", "aws_access_key", "aws_secret_key"]
+    # Semantic check: no static keys anywhere (scripts, env, or with: blocks).
+    - predicate: no-rule-findings
+      rules: [aws-access-key, hardcoded-credential]
 scoring:
   hints_used_penalty: 30
   time_bonus: 75
