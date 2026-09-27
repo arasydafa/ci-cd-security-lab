@@ -134,7 +134,7 @@ export function Dashboard() {
       {/* Onboarding: new learners know where to start */}
       {attemptedCount === 0 && !loading && (
         <Card className="border-l-4 border-l-success">
-          <h2 className="text-xl font-bold mb-2 text-ot-text">Mulai dari mana?</h2>
+          <h2 className="text-xl font-bold mb-2 text-ot-text">Where to start?</h2>
           <p className="text-sm text-ot-muted mb-4">
             No setup needed. Pick one entry-level challenge — no prerequisites —
             then follow Prerequisites → Objectives → Next up on each page.
