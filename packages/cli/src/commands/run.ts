@@ -11,6 +11,7 @@ interface ProgressData {
     bestScore: number;
     completed: boolean;
     completedAt?: string;
+    solutionViewed?: boolean;
   };
 }
 
@@ -119,6 +120,7 @@ export async function runCommand(
           bestScore: newBest,
           completed: true,
           completedAt: new Date().toISOString(),
+          solutionViewed: prev?.solutionViewed,
         };
         saveProgress(progress);
       }
@@ -133,6 +135,7 @@ export async function runCommand(
           hintsUsed,
           bestScore: prev?.bestScore || 0,
           completed: false,
+          solutionViewed: prev?.solutionViewed,
         };
         saveProgress(progress);
       }

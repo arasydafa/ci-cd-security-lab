@@ -11,6 +11,7 @@ interface ProgressData {
     bestScore: number;
     completed: boolean;
     completedAt?: string;
+    solutionViewed?: boolean;
   };
 }
 
@@ -72,6 +73,7 @@ export function hintCommand(manager: ChallengeManager, challengeId: string, hint
     bestScore: prev?.bestScore || 0,
     completed: prev?.completed || false,
     completedAt: prev?.completedAt,
+    solutionViewed: prev?.solutionViewed,
   };
   saveProgress(progress);
 
