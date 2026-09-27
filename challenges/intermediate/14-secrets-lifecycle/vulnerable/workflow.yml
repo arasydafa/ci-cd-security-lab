@@ -20,5 +20,5 @@ jobs:
 
       - name: Deploy
         env:
-          DEPLOY_TOKEN: dpl_live_9f8e7d6c5b4a
+          DEPLOY_TOKEN: dpl_example_static_token_replace_me
         run: ./deploy.sh
