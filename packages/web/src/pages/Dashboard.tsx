@@ -1,8 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight, Check, Download, Upload } from 'lucide-react';
 import { Button, Card, CodeBlock } from '@omega-os/ui';
-import { staticList } from '../data/staticChallenges.js';
+import {
+  entryChallenges,
+  isCleanSolve,
+  loadProgress,
+  nextUp,
+  saveProgress,
+  staticList,
+  type ProgressData,
+} from '../data/staticChallenges.js';
 
 interface Challenge {
   id: string;
@@ -11,25 +19,6 @@ interface Challenge {
   topic: string;
   points: number;
   estimatedTime: string;
-}
-
-interface ProgressEntry {
-  attempts: number;
-  hintsUsed: number;
-  bestScore: number;
-  completed: boolean;
-  completedAt?: string;
-}
-
-type ProgressData = Record<string, ProgressEntry>;
-
-function loadProgress(): ProgressData {
-  try {
-    const raw = localStorage.getItem('cicd-lab-progress');
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
 }
 
 const CLI_SNIPPET = `# List all challenges
@@ -54,6 +43,7 @@ export function Dashboard() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<ProgressData>({});
+  const fileRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -69,6 +59,7 @@ export function Dashboard() {
 
   const completedCount = Object.values(progress).filter((p) => p.completed).length;
   const attemptedCount = Object.values(progress).filter((p) => p.attempts > 0).length;
+  const cleanCount = Object.values(progress).filter(isCleanSolve).length;
   const totalPoints = challenges.reduce((sum, c) => sum + c.points, 0);
   const earnedPoints = challenges.reduce((sum, c) => {
     const p = progress[c.id];
@@ -86,6 +77,50 @@ export function Dashboard() {
     earnedPoints,
   };
 
+  const recommended = nextUp(progress);
+  const starters = entryChallenges().slice(0, 3);
+
+  const exportProgress = (): void => {
+    const blob = new Blob([JSON.stringify(progress, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'cicd-lab-progress.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importProgress = (file: File): void => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result)) as ProgressData;
+        // Merge: keep best score, union attempts, preserve solutionViewed.
+        const merged: ProgressData = { ...progress };
+        for (const [id, entry] of Object.entries(parsed)) {
+          const prev = merged[id];
+          if (!prev) {
+            merged[id] = entry;
+            continue;
+          }
+          merged[id] = {
+            attempts: Math.max(prev.attempts || 0, entry.attempts || 0),
+            hintsUsed: Math.max(prev.hintsUsed || 0, entry.hintsUsed || 0),
+            bestScore: Math.max(prev.bestScore || 0, entry.bestScore || 0),
+            completed: prev.completed || entry.completed,
+            completedAt: prev.completedAt || entry.completedAt,
+            solutionViewed: prev.solutionViewed || entry.solutionViewed,
+          };
+        }
+        setProgress(merged);
+        saveProgress(merged);
+      } catch {
+        // Ignore malformed files; keep current progress.
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -96,11 +131,56 @@ export function Dashboard() {
         </p>
       </div>
 
+      {/* Onboarding: new learners know where to start */}
+      {attemptedCount === 0 && !loading && (
+        <Card className="border-l-4 border-l-success">
+          <h2 className="text-xl font-bold mb-2 text-ot-text">Mulai dari mana?</h2>
+          <p className="text-sm text-ot-muted mb-4">
+            No setup needed. Pick one entry-level challenge — no prerequisites —
+            then follow Prerequisites → Objectives → Next up on each page.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {starters.map((s) => (
+              <Link
+                key={s.id}
+                to={`/challenges/${s.id}`}
+                className="inline-flex items-center gap-1 text-sm font-medium text-navy-text hover:underline"
+              >
+                {s.title} <ArrowRight size={14} aria-hidden />
+              </Link>
+            ))}
+          </div>
+          <Button onClick={() => navigate(`/challenges/${starters[0]?.id || 'secrets-leak'}`)} className="mt-4">
+            Start: {starters[0]?.title || 'Secrets Leak'}
+          </Button>
+        </Card>
+      )}
+
+      {/* Continue card: resume where you left off */}
+      {attemptedCount > 0 && recommended && (
+        <Card className="border-l-4 border-l-navy">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-ot-text">Continue</h2>
+              <p className="text-sm text-ot-muted">
+                Next up: <span className="font-medium text-ot-text">{recommended.title}</span>
+                {recommended.prerequisites.length > 0 && (
+                  <span> — requires {recommended.prerequisites.join(', ')}</span>
+                )}
+              </p>
+            </div>
+            <Button onClick={() => navigate(`/challenges/${recommended.id}`)} className="shrink-0">
+              Continue <ArrowRight size={14} aria-hidden />
+            </Button>
+          </div>
+        </Card>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Completed" value={`${completedCount} / ${stats.total}`} tone="success" />
         <StatCard label="Attempted" value={`${attemptedCount} / ${stats.total}`} tone="info" />
         <StatCard label="Score Earned" value={`${earnedPoints} / ${totalPoints}`} tone="navy" />
-        <StatCard label="Beginner" value={stats.beginner} tone="success" />
+        <StatCard label="Clean solves" value={`${cleanCount}`} tone="success" />
       </div>
 
       {completedCount > 0 && (
@@ -112,6 +192,16 @@ export function Dashboard() {
                 <div className="flex items-center gap-2">
                   <Check size={16} aria-hidden className="text-success" />
                   <span className="text-ot-text">{c.title}</span>
+                  {isCleanSolve(progress[c.id]) && (
+                    <span className="text-xs font-medium text-success border border-success rounded-full px-2 py-0.5">
+                      clean-solve
+                    </span>
+                  )}
+                  {progress[c.id]?.solutionViewed && !isCleanSolve(progress[c.id]) && (
+                    <span className="text-xs text-ot-muted border border-ot-border rounded-full px-2 py-0.5">
+                      solved-with-solution
+                    </span>
+                  )}
                 </div>
                 <span className="text-success font-medium">{progress[c.id].bestScore} pts</span>
               </div>
@@ -125,6 +215,34 @@ export function Dashboard() {
           </Link>
         </Card>
       )}
+
+      <Card>
+        <h2 className="text-xl font-bold mb-2 text-ot-text">Progress sync (web ↔ CLI)</h2>
+        <p className="text-sm text-ot-muted mb-4">
+          Same JSON file as <span className="font-mono">~/.cicd-lab-progress.json</span>.
+          Export from the web and <span className="font-mono">cicd-lab progress --import</span> it,
+          or vice versa.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={exportProgress} icon={<Download size={14} aria-hidden />}>
+            Export JSON
+          </Button>
+          <Button onClick={() => fileRef.current?.click()} icon={<Upload size={14} aria-hidden />}>
+            Import JSON
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) importProgress(f);
+              e.target.value = '';
+            }}
+          />
+        </div>
+      </Card>
 
       <Card>
         <h2 className="text-xl font-bold mb-4 text-ot-text">Quick Start</h2>

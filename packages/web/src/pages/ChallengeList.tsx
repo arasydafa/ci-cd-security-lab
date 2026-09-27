@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Check, Search } from 'lucide-react';
 import { Badge, Card, EmptyState, Skeleton } from '@omega-os/ui';
 import type { BadgeTone } from '@omega-os/ui';
-import { staticList } from '../data/staticChallenges.js';
+import {
+  isCleanSolve,
+  loadProgress,
+  nextUp,
+  staticList,
+  type ProgressData,
+} from '../data/staticChallenges.js';
 
 interface Challenge {
   id: string;
@@ -13,6 +19,8 @@ interface Challenge {
   points: number;
   estimatedTime: string;
   tags: string[];
+  prerequisites: string[];
+  objectives: string[];
 }
 
 const levelTones: Record<string, BadgeTone> = {
@@ -28,6 +36,8 @@ const topicLabels: Record<string, string> = {
   terraform: 'Terraform',
   monitoring: 'Monitoring',
 };
+
+const LEVEL_ORDER: Record<string, number> = { beginner: 0, intermediate: 1, advanced: 2 };
 
 const selectClassName =
   'bg-ot-surface border border-ot-border rounded-ot-sm px-3 py-2 text-sm text-ot-text focus:outline-none focus:ring-ot-ring transition-colors';
@@ -55,6 +65,7 @@ export function ChallengeList() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState({ level: '', topic: '' });
+  const [progress] = useState<ProgressData>(() => loadProgress());
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -67,14 +78,33 @@ export function ChallengeList() {
         return r.json();
       })
       .then((d) => { setChallenges(d.data || []); setLoading(false); })
-      .catch(() => { setChallenges(staticList(filter.level, filter.topic)); setLoading(false); });
+      .catch(() => { setChallenges(staticList(filter.level, filter.topic) as Challenge[]); setLoading(false); });
   }, [filter]);
+
+  const recommendedId = useMemo(() => nextUp(progress)?.id, [progress]);
+
+  const ordered = useMemo(() => {
+    const done = new Set(Object.entries(progress).filter(([, p]) => p.completed).map(([id]) => id));
+    const rank = (c: Challenge): number => {
+      if (c.id === recommendedId) return 0;
+      const met = c.prerequisites.every((p) => done.has(p));
+      if (!progress[c.id]?.completed && met) return 1;
+      if (progress[c.id]?.completed) return 2;
+      return 3;
+    };
+    return [...challenges].sort(
+      (a, b) => rank(a) - rank(b) || (LEVEL_ORDER[a.level] ?? 9) - (LEVEL_ORDER[b.level] ?? 9) || a.id.localeCompare(b.id),
+    );
+  }, [challenges, progress, recommendedId]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2 text-ot-text">Challenges</h1>
-        <p className="text-ot-muted">Select a challenge to begin learning.</p>
+        <p className="text-ot-muted">
+          Select a challenge to begin learning. Start with entry-level (no prerequisites),
+          then follow Next up.
+        </p>
       </div>
 
       <div className="flex gap-3 flex-wrap">
@@ -123,33 +153,52 @@ export function ChallengeList() {
         />
       ) : (
         <div className="grid gap-4">
-          {challenges.map((c) => (
-            <Link key={c.id} to={`/challenges/${c.id}`} className="group block">
-              <Card className="ot-transition hover:border-navy">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge tone={levelTones[c.level] || 'grey'}>{c.level}</Badge>
-                      <Badge tone="grey">{topicLabels[c.topic] || c.topic}</Badge>
+          {ordered.map((c) => {
+            const entry = progress[c.id];
+            const done = !!entry?.completed;
+            const clean = isCleanSolve(entry);
+            const isNext = c.id === recommendedId;
+            return (
+              <Link key={c.id} to={`/challenges/${c.id}`} className="group block">
+                <Card className="ot-transition hover:border-navy">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <Badge tone={levelTones[c.level] || 'grey'}>{c.level}</Badge>
+                        <Badge tone="grey">{topicLabels[c.topic] || c.topic}</Badge>
+                        {isNext && <Badge tone="navy">Next up</Badge>}
+                        {done && (
+                          <span className="inline-flex items-center gap-1 text-xs text-success">
+                            <Check size={12} aria-hidden /> done
+                          </span>
+                        )}
+                        {clean && <Badge tone="success">clean-solve</Badge>}
+                      </div>
+                      <h3 className="text-lg font-bold text-ot-text group-hover:text-navy-text transition-colors truncate">
+                        {c.title}
+                      </h3>
+                      <p className="text-xs text-ot-muted mt-1">
+                        {c.prerequisites.length === 0
+                          ? 'Entry-level — no prerequisites'
+                          : `Requires: ${c.prerequisites.join(', ')}`}
+                        {c.objectives?.length > 0 && ` · ${c.objectives.length} objectives`}
+                      </p>
                     </div>
-                    <h3 className="text-lg font-bold text-ot-text group-hover:text-navy-text transition-colors truncate">
-                      {c.title}
-                    </h3>
+                    <div className="text-right shrink-0">
+                      <div className="text-lg font-bold text-success">{c.points}</div>
+                      <div className="text-xs text-ot-muted">pts</div>
+                    </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-lg font-bold text-success">{c.points}</div>
-                    <div className="text-xs text-ot-muted">pts</div>
+                  <div className="mt-3 flex items-center gap-2 flex-wrap">
+                    {c.tags.map((tag) => (
+                      <Badge key={tag} tone="grey">{tag}</Badge>
+                    ))}
+                    <span className="text-xs text-ot-muted ml-auto">~{c.estimatedTime}</span>
                   </div>
-                </div>
-                <div className="mt-3 flex items-center gap-2 flex-wrap">
-                  {c.tags.map((tag) => (
-                    <Badge key={tag} tone="grey">{tag}</Badge>
-                  ))}
-                  <span className="text-xs text-ot-muted ml-auto">~{c.estimatedTime}</span>
-                </div>
-              </Card>
-            </Link>
-          ))}
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>
