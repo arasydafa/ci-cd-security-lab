@@ -1,0 +1,29 @@
+id: pr-target-pwn
+title: "Pwn Request"
+level: advanced
+topic: github-actions
+category: security
+estimated_time: 30m
+points: 250
+description: |
+  This workflow runs on pull_request_target and checks out the fork's code
+  before running it. Any fork author gets code execution with a write token
+  and repository secrets. Stop executing untrusted code in a privileged context.
+tags: [pwn-request, pull-request-target, checkout]
+prerequisites: [script-injection, self-hosted-risk]
+objectives:
+  - Explain how pull_request_target plus a fork checkout creates a pwn request
+  - Move untrusted builds to the pull_request event or gate on trusted labels
+  - Verify no fork-controlled ref is checked out or executed with secrets
+references:
+  - page: github-actions
+    label: Pwn requests and checkout protection guide
+validation:
+  type: workflow-check
+  expected:
+    # Semantic check: no fork checkout under pull_request_target.
+    - predicate: no-rule-findings
+      rules: [pr-target-untrusted-checkout]
+scoring:
+  hints_used_penalty: 50
+  time_bonus: 100

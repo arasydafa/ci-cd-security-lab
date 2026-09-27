@@ -20,7 +20,8 @@ references:
 validation:
   type: workflow-check
   expected:
-    - should_not_contain: ['"Action": "*"', '"Resource": "*"']
+    # Both JSON and HCL spellings: the fixture embeds Terraform HCL.
+    - should_not_contain: ['"Action": "*"', '"Resource": "*"', 'Action = "*"', 'Resource = "*"']
 scoring:
   hints_used_penalty: 50
   time_bonus: 100
