@@ -61,6 +61,12 @@ export interface ValidationExpectation {
 export interface ScoringConfig {
   hints_used_penalty: number;
   time_bonus: number;
+  /**
+   * Fraction of validation checks (0..1) required to pass.
+   * Default 1 (every check must pass). Partial points are awarded
+   * proportionally regardless of the threshold.
+   */
+  pass_threshold?: number;
 }
 
 // ─── Workflow Types (GitHub Actions subset) ────────────────────
@@ -205,6 +211,15 @@ export interface ScoreResult {
   totalDeductions: number;
   finalScore: number;
   passed: boolean;
+  /** Checks fixed, e.g. 2 of 3 — drives the "2/3 fixed" UI. */
+  passedChecks: number;
+  totalChecks: number;
+  /** passedChecks / totalChecks, 0 when there are no checks. */
+  partialRatio: number;
+  /** time_bonus awarded (0 unless solved within estimatedTime). */
+  timeBonusAwarded: number;
+  /** Threshold applied (challenge scoring.pass_threshold, default 1). */
+  threshold: number;
 }
 
 export interface ValidationResult {

@@ -7,6 +7,7 @@ import { parseWorkflow } from './parser.js';
 import { simulate, type SimulationOptions } from './simulator.js';
 import { type SimulationContext, createContext } from './environment.js';
 import { predicateCheck } from './predicates.js';
+import { clampThreshold, computeScore } from './scoring.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -81,6 +82,7 @@ export class ChallengeManager {
       scoring: {
         hints_used_penalty: ((meta.scoring as Record<string, unknown>)?.hints_used_penalty as number) || 25,
         time_bonus: ((meta.scoring as Record<string, unknown>)?.time_bonus as number) || 50,
+        pass_threshold: clampThreshold((meta.scoring as Record<string, unknown>)?.pass_threshold),
       },
       paths: {
         vulnerable: path.join(dirPath, 'vulnerable', 'workflow.yml'),
@@ -137,7 +139,12 @@ export class ChallengeManager {
     return fs.readFileSync(challenge.paths.scenario, 'utf-8');
   }
 
-  async runSimulation(challengeId: string, workflowYaml?: string, hintsUsed = 0): Promise<SimulationResult> {
+  async runSimulation(
+    challengeId: string,
+    workflowYaml?: string,
+    hintsUsed = 0,
+    elapsedMs?: number,
+  ): Promise<SimulationResult> {
     const yamlContent = workflowYaml || this.getVulnerableWorkflow(challengeId);
     if (!yamlContent) {
       throw new Error(`No workflow found for challenge ${challengeId}`);
@@ -149,33 +156,37 @@ export class ChallengeManager {
     const challenge = this.getById(challengeId);
     const validation = challenge ? this.validate(challenge, result, yamlContent) : { passed: false, checks: [] };
 
-    const score = this.calculateScore(challenge, validation.passed, hintsUsed);
+    const passedChecks = validation.checks.filter((c) => c.passed).length;
+    const score = challenge
+      ? computeScore({
+          basePoints: challenge.points,
+          hintsUsed,
+          hintsPenalty: challenge.scoring.hints_used_penalty,
+          timeBonus: challenge.scoring.time_bonus,
+          estimatedTime: challenge.estimatedTime,
+          threshold: challenge.scoring.pass_threshold ?? 1,
+          passedChecks,
+          totalChecks: validation.checks.length,
+          elapsedMs,
+        })
+      : {
+          basePoints: 0,
+          hintsUsed: 0,
+          hintsPenalty: 0,
+          totalDeductions: 0,
+          finalScore: 0,
+          passed: false,
+          passedChecks: 0,
+          totalChecks: validation.checks.length,
+          partialRatio: 0,
+          timeBonusAwarded: 0,
+          threshold: 1,
+        };
 
-    return { result, validation, score };
-  }
-
-  private calculateScore(
-    challenge: Challenge | undefined,
-    passed: boolean,
-    hintsUsed: number
-  ): import('@cicd-lab/shared').ScoreResult {
-    if (!challenge) {
-      return { basePoints: 0, hintsUsed: 0, hintsPenalty: 0, totalDeductions: 0, finalScore: 0, passed: false };
-    }
-
-    const basePoints = challenge.points;
-    const penalty = challenge.scoring.hints_used_penalty;
-    const totalDeductions = hintsUsed * penalty;
-    const finalScore = passed ? Math.max(0, basePoints - totalDeductions) : 0;
-
-    return {
-      basePoints,
-      hintsUsed,
-      hintsPenalty: penalty,
-      totalDeductions,
-      finalScore,
-      passed,
-    };
+    // Pass/fail comes from the threshold (default: every check must pass),
+    // so validation.passed and score.passed always agree.
+    const synced = { ...validation, passed: score.passed };
+    return { result, validation: synced, score };
   }
 
   private validate(

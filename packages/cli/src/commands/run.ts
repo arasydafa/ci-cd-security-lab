@@ -12,6 +12,7 @@ interface ProgressData {
     completed: boolean;
     completedAt?: string;
     solutionViewed?: boolean;
+    startedAt?: string;
   };
 }
 
@@ -58,14 +59,18 @@ export async function runCommand(
     workflowYaml = fs.readFileSync(file, 'utf-8');
   }
 
-  // Load progress to get hints used
+  // Load progress to get hints used; startedAt anchors the time_bonus clock.
   const progress = loadProgress();
   const hintsUsed = challengeId ? (progress[challengeId]?.hintsUsed || 0) : 0;
+  const startedAt = challengeId
+    ? (progress[challengeId]?.startedAt || new Date().toISOString())
+    : new Date().toISOString();
+  const elapsedMs = Math.max(0, Date.now() - new Date(startedAt).getTime());
 
   console.log(chalk.bold('\n  Running simulation...\n'));
 
   try {
-    const result = await manager.runSimulation(challengeId || '', workflowYaml, hintsUsed);
+    const result = await manager.runSimulation(challengeId || '', workflowYaml, hintsUsed, elapsedMs);
 
     // Print execution logs
     for (const log of result.result.logs) {
@@ -98,6 +103,7 @@ export async function runCommand(
         console.log(chalk.dim(`    ${check.message}`));
       }
     }
+    console.log(chalk.dim(`  ${result.score.passedChecks}/${result.score.totalChecks} fixed`));
     console.log();
 
     // Print score
@@ -107,6 +113,9 @@ export async function runCommand(
       console.log(chalk.bold(`  Score: ${score.finalScore} / ${score.basePoints}`));
       if (score.totalDeductions > 0) {
         console.log(chalk.dim(`  (${score.hintsUsed} hint(s) used, -${score.totalDeductions} pts)`));
+      }
+      if (score.timeBonusAwarded > 0) {
+        console.log(chalk.dim(`  (fast solve bonus: +${score.timeBonusAwarded} pts)`));
       }
       console.log();
 
@@ -121,11 +130,13 @@ export async function runCommand(
           completed: true,
           completedAt: new Date().toISOString(),
           solutionViewed: prev?.solutionViewed,
+          startedAt,
         };
         saveProgress(progress);
       }
     } else {
-      console.log(chalk.red.bold('  ✗ Challenge FAILED — fix the issues above and try again.\n'));
+      console.log(chalk.red.bold('  ✗ Challenge FAILED — fix the issues above and try again.'));
+      console.log(chalk.dim(`  Partial score so far: ${score.finalScore} / ${score.basePoints} (${score.passedChecks}/${score.totalChecks} fixed)\n`));
 
       // Record attempt
       if (challengeId) {
@@ -136,6 +147,7 @@ export async function runCommand(
           bestScore: prev?.bestScore || 0,
           completed: false,
           solutionViewed: prev?.solutionViewed,
+          startedAt,
         };
         saveProgress(progress);
       }
