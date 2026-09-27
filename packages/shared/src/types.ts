@@ -36,6 +36,15 @@ export interface ValidationExpectation {
   should_not_contain?: string[];
   file?: string;
   content?: string;
+  /**
+   * Semantic predicate evaluated against the parsed workflow
+   * (see simulator predicates). Preferred over substring matching:
+   * `no-interpolation-in-run`, `all-uses-pinned`,
+   * `has-explicit-permissions`, `no-write-all`,
+   * or `no-rule-findings` with `rules: [ruleId, ...]`.
+   */
+  predicate?: string;
+  rules?: string[];
 }
 
 export interface ScoringConfig {
@@ -192,4 +201,8 @@ export interface ValidationCheck {
   description: string;
   passed: boolean;
   message?: string;
+  /** Attacker-view explanation shown when the check fails. */
+  whyItMatters?: string;
+  /** Deep link to the learning guide, e.g. `/reference/github-actions`. */
+  reference?: string;
 }

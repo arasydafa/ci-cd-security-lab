@@ -331,7 +331,7 @@ const errorSwallow = defineRule({
   },
 });
 
-const INTERPOLATION_RE = /\$\{\{\s*(github\.event\.|inputs\.)/;
+const INTERPOLATION_RE = /\$\{\{\s*(github\.event\.|github\.head_ref|github\.ref(_name)?|inputs\.|needs\.|steps\.|matrix\.)/;
 
 const interpolationInRun = defineRule({
   id: 'interpolation-in-run',

@@ -13,7 +13,10 @@ tags: [injection, github-context, script-execution]
 validation:
   type: workflow-check
   expected:
-    - should_not_contain: ["${{ github.event.pull_request.title }}", "${{ github.event.issue.body }}"]
+    # Semantic check: untrusted contexts must not be interpolated into run:
+    # scripts. Env-var indirection (the taught fix) passes; any direct
+    # ${{ github.event.* }} / ${{ inputs.* }} usage fails, with line numbers.
+    - predicate: no-interpolation-in-run
 scoring:
   hints_used_penalty: 30
   time_bonus: 75

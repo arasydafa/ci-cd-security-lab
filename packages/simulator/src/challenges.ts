@@ -6,6 +6,7 @@ import type { Challenge, ChallengeLevel, ChallengeTopic, SecurityFinding } from 
 import { parseWorkflow } from './parser.js';
 import { simulate, type SimulationOptions } from './simulator.js';
 import { type SimulationContext, createContext } from './environment.js';
+import { predicateCheck } from './predicates.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -140,7 +141,7 @@ export class ChallengeManager {
     }
 
     const workflow = parseWorkflow(yamlContent);
-    const result = await simulate({ workflow });
+    const result = await simulate({ workflow, rawYaml: yamlContent });
 
     const challenge = this.getById(challengeId);
     const validation = challenge ? this.validate(challenge, result, yamlContent) : { passed: false, checks: [] };
@@ -182,6 +183,19 @@ export class ChallengeManager {
     const checks: ValidationCheck[] = [];
 
     for (const expectation of challenge.validation.expected) {
+      if (expectation.predicate) {
+        const check = predicateCheck(expectation.predicate, { workflow: parseWorkflow(yamlContent), rawYaml: yamlContent }, { rules: expectation.rules });
+        if (check) {
+          checks.push(check);
+        } else {
+          checks.push({
+            description: `Unknown predicate "${expectation.predicate}"`,
+            passed: false,
+            message: `Challenge configuration error: unknown predicate. Known: no-interpolation-in-run, all-uses-pinned, has-explicit-permissions, no-write-all, no-rule-findings.`,
+          });
+        }
+        continue;
+      }
       if (expectation.should_not_contain) {
         for (const pattern of expectation.should_not_contain) {
           const found = yamlContent.includes(pattern) || result.logs.some((l) => l.includes(pattern));
@@ -256,4 +270,8 @@ export interface ValidationCheck {
   description: string;
   passed: boolean;
   message?: string;
+  /** Attacker-view explanation shown when the check fails. */
+  whyItMatters?: string;
+  /** Deep link to the learning guide, e.g. `/reference/github-actions`. */
+  reference?: string;
 }
