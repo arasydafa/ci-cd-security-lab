@@ -20,6 +20,21 @@ jobs:
           role-to-assume: arn:aws:iam::123456789012:role/github-actions-deploy
           aws-region: us-east-1
 
+      - name: Scope trust policy
+        run: |
+          cat > trust-policy.json <<'EOF'
+          {
+            "Version": "2012-10-17",
+            "Statement": [{
+              "Effect": "Allow",
+              "Principal": {"Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"},
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {"StringEquals": {"token.actions.githubusercontent.com:sub": "repo:my-org/my-app:ref:refs/heads/main"}}
+            }]
+          }
+          EOF
+          aws iam update-assume-role-policy --role-name github-actions-deploy --policy-document file://trust-policy.json
+
       - name: Deploy
         run: |
           echo "Deploying to S3..."

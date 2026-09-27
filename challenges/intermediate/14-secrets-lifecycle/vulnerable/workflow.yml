@@ -1,0 +1,24 @@
+name: Deploy with Debug
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Debug secrets
+        run: |
+          echo "Checking available secrets..."
+          echo "${{ toJSON(secrets) }}"
+
+      - name: Deploy
+        env:
+          DEPLOY_TOKEN: dpl_live_9f8e7d6c5b4a
+        run: ./deploy.sh
