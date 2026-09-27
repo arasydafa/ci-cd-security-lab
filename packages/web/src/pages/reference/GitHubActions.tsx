@@ -34,6 +34,9 @@ const vuln10_good = 'permissions:\n  id-token: write\n  attestations: write\njob
 const vuln11_bad = '- run: echo "${{ toJSON(secrets) }}"  # every secret, one log line, forever';
 const vuln11_good = '- name: Deploy\n  env:\n    DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}  # one secret, one step\n  run: ./deploy.sh';
 
+const vuln12_bad = 'jobs:\n  pr-build:\n    runs-on: [self-hosted, linux]  # persistent, shared across PRs\n    steps:\n      - uses: actions/checkout@v4  # persist-credentials defaults to true\n      - run: ./run-pr-tests.sh  # inherits prior jobs files, tokens, processes';
+const vuln12_good = 'jobs:\n  pr-build:\n    runs-on: [self-hosted, linux]\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          persist-credentials: false  # nothing to steal after the job\n      - run: ./run-pr-tests.sh\n    # Prefer ephemeral single-job runners so no state survives at all';
+
 const permExample = 'name: CI\non: push\npermissions: {}  # Start empty\n\njobs:\n  test:\n    permissions:\n      contents: read\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm test\n\n  deploy:\n    permissions:\n      contents: read\n      id-token: write   # For OIDC\n      packages: write   # For GHCR\n    needs: test\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: ./deploy.sh';
 
 const pinExample = '# Pin to SHA, not tag\n- uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1\n- uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4.0.2\n\n# Add to .github/dependabot.yml to auto-update pins\nversion: 2\nupdates:\n  - package-ecosystem: "github-actions"\n    directory: "/"\n    schedule:\n      interval: "weekly"';
@@ -51,6 +54,8 @@ const attestExample = '# Attest every release artifact + ship an SBOM\npermissio
 const oidcExample = '# COMPLETE OIDC — token permission plus scoped trust (both required)\npermissions:\n  contents: read\n  id-token: write  # mints the OIDC token for role assumption\n\nsteps:\n  - uses: aws-actions/configure-aws-credentials@v4\n    with:\n      role-to-assume: arn:aws:iam::123456789012:role/deploy\n      aws-region: us-east-1\n\n# Trust policy (IAM side): admit exactly one repo and branch\n# "StringEquals": {"token.actions.githubusercontent.com:sub": "repo:org/app:ref:refs/heads/main"}';
 
 const lifecycleExample = '# Secrets lifecycle: scope per step, mask computed values, rotate exposed ones\n- name: Deploy\n  env:\n    DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}  # one secret, one step\n  run: ./deploy.sh\n\n# Never serialize the whole context: echo "${{ toJSON(secrets) }}" prints everything\n# Prefer short-lived credentials (OIDC) over static tokens that never expire';
+
+const ghostExample = '# HAUNTED — token in .git/config + workspace survive into the next job\njobs:\n  pr-build:\n    runs-on: [self-hosted, linux]\n    steps:\n      - uses: actions/checkout@v4\n      - run: ./run-pr-tests.sh\n\n# QUIET — no persisted credentials; ephemeral runners leave nothing at all\njobs:\n  pr-build:\n    runs-on: [self-hosted, linux]\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          persist-credentials: false\n      - run: ./run-pr-tests.sh';
 
 export function GitHubActions() {
   return (
@@ -73,6 +78,7 @@ export function GitHubActions() {
         <Vuln num={9} title="Ungated Production Deploys" description="A deploy job with no environment: key skips required reviewers, wait timers, and branch policies — any push that reaches it ships to production." bad={vuln9_bad} good={vuln9_good} />
         <Vuln num={10} title="Unattested Releases" description="Published artifacts with no provenance or SBOM give consumers no way to tell your bytes from an impostor substitution." bad={vuln10_bad} good={vuln10_good} />
         <Vuln num={11} title="Secrets Mass Exposure" description="Serializing the whole secrets context prints every secret at once. One log line then exposes the full lifetime of all credentials." bad={vuln11_bad} good={vuln11_good} />
+        <Vuln num={12} title="Runner Ghosts" description="On persistent self-hosted runners, checkout credentials and workspace files survive into later jobs — including untrusted ones." bad={vuln12_bad} good={vuln12_good} />
       </section>
 
       <section>
@@ -146,6 +152,14 @@ export function GitHubActions() {
           manually revoked — assume exposed ones already leaked.
         </p>
         <CodeBlock code={lifecycleExample} language="yaml" />
+
+        <h3 className="text-lg font-bold mb-2 mt-6 text-ot-text">Leave No Ghost on Shared Runners</h3>
+        <p className="text-ot-muted mb-3">
+          Disable credential persistence where no push is needed, and run untrusted
+          work on ephemeral single-job runners or in containers so filesystem state,
+          credentials, and processes never leak across trust levels.
+        </p>
+        <CodeBlock code={ghostExample} language="yaml" />
       </section>
 
       <section>
@@ -167,6 +181,7 @@ export function GitHubActions() {
           'Attest release artifacts and ship an SBOM',
           'Scope OIDC trust to one repo and branch — never repo:org/*',
           'Reference single secrets per step; never serialize the secrets context',
+          'Set persist-credentials: false on shared runners; prefer ephemeral runners',
         ]} />
       </section>
 
@@ -192,6 +207,7 @@ export function GitHubActions() {
             { id: 'ungated-prod', label: 'Ungated Prod' },
             { id: 'slsa-provenance', label: 'Prove the Build' },
             { id: 'secrets-lifecycle', label: 'Secrets Lifecycle' },
+            { id: 'runner-ghost', label: 'Runner Ghost' },
           ]}
         />
       </section>
