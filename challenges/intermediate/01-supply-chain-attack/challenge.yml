@@ -11,7 +11,7 @@ description: |
 tags: [supply-chain, attacks, defense-in-depth]
 prerequisites: [unsafe-deps, secrets-leak]
 objectives:
-  - Map each attack stage: exfiltration, tampering, persistence
+  - Map the exfiltration, tampering, and persistence stages of the attack chain
   - Remove exfil paths and verify artifact integrity
 references:
   - page: github-actions

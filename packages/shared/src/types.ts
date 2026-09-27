@@ -181,6 +181,10 @@ export interface UserProgress {
   hintsUsed: number;
   bestScore: number;
   completedAt?: string;
+  /** True once the learner revealed the solution. Distinguishes clean solves. */
+  solutionViewed?: boolean;
+  /** True when completed with 0 hints and without viewing the solution. */
+  cleanSolve?: boolean;
 }
 
 export interface SimulationRequest {

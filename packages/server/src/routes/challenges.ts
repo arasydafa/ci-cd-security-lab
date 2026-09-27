@@ -27,6 +27,9 @@ router.get('/', (_req, res) => {
       points: c.points,
       estimatedTime: c.estimatedTime,
       tags: c.tags,
+      prerequisites: c.prerequisites,
+      objectives: c.objectives,
+      references: c.references,
     })),
   });
 });
