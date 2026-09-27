@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Check, ChevronDown, ChevronRight, Play, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight, Play, X } from 'lucide-react';
 import { Alert, Badge, Button, Card, EmptyState, Skeleton, Tabs } from '@omega-os/ui';
 import type { BadgeTone } from '@omega-os/ui';
 import { staticDetail, staticHint, staticSolution } from '../data/staticChallenges.js';
@@ -37,6 +37,8 @@ interface ValidationCheck {
   description: string;
   passed: boolean;
   message?: string;
+  whyItMatters?: string;
+  reference?: string;
 }
 
 interface ScoreResult {
@@ -499,11 +501,26 @@ export function ChallengeWorkspace() {
                 </div>
               )}
 
-              <div className="space-y-1.5">
+              <div className="space-y-2.5">
                 {result.validation.checks.map((c, i) => (
-                  <div key={i} className="flex items-start gap-2 text-sm opacity-90">
-                    <span className="mt-0.5">{c.passed ? <Check size={14} aria-hidden /> : <X size={14} aria-hidden />}</span>
-                    <span>{c.description}</span>
+                  <div key={i} className="text-sm opacity-90">
+                    <div className="flex items-start gap-2">
+                      <span className="mt-0.5">{c.passed ? <Check size={14} aria-hidden /> : <X size={14} aria-hidden />}</span>
+                      <span>{c.description}</span>
+                    </div>
+                    {!c.passed && (c.message || c.whyItMatters || c.reference) && (
+                      <div className="ml-6 mt-1 space-y-1 text-[13px] opacity-80">
+                        {c.message && (
+                          <pre className="whitespace-pre-wrap font-mono">{c.message}</pre>
+                        )}
+                        {c.whyItMatters && <p>{c.whyItMatters}</p>}
+                        {c.reference && (
+                          <Link to={c.reference} className="inline-flex items-center gap-1 underline underline-offset-2">
+                            Learn more <ArrowRight size={12} aria-hidden />
+                          </Link>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
