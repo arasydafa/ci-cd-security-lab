@@ -20,5 +20,5 @@ jobs:
 
       - name: Deploy
         env:
-          DEPLOY_TOKEN: dpl_example_static_token_replace_me
+          DEPLOY_TOKEN: FILL_ME_FROM_SECRETS
         run: ./deploy.sh
