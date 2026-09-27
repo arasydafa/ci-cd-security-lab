@@ -10,6 +10,13 @@ description: |
   An attacker could tamper with artifacts between build and deploy.
   Add checksums to verify artifact integrity.
 tags: [artifacts, integrity, checksums]
+prerequisites: [unsafe-deps]
+objectives:
+  - Generate checksums at build time
+  - Verify integrity before deploy
+references:
+  - page: github-actions
+    label: Artifact integrity guide
 validation:
   type: workflow-check
   expected:

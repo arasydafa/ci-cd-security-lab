@@ -9,6 +9,13 @@ description: |
   A malicious PR modifies this workflow to exfiltrate secrets and inject
   backdoors. Identify all stages of the attack chain and secure the pipeline.
 tags: [supply-chain, attacks, defense-in-depth]
+prerequisites: [unsafe-deps, secrets-leak]
+objectives:
+  - Map each attack stage: exfiltration, tampering, persistence
+  - Remove exfil paths and verify artifact integrity
+references:
+  - page: github-actions
+    label: Supply chain safety guide
 validation:
   type: workflow-check
   expected:

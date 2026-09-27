@@ -11,6 +11,13 @@ description: |
   can craft a malicious caller workflow to inject arbitrary code.
   Sanitize all inputs before using them in run steps.
 tags: [injection, reusable-workflows, inputs]
+prerequisites: [script-injection]
+objectives:
+  - Sanitize reusable workflow inputs before shell use
+  - Apply env indirection to inputs like any untrusted context
+references:
+  - page: github-actions
+    label: Script injection guide
 validation:
   type: workflow-check
   expected:

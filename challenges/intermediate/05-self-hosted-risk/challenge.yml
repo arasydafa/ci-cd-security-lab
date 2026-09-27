@@ -10,6 +10,13 @@ description: |
   A malicious PR could persist on the runner and compromise future builds.
   Switch to GitHub-hosted runners or add container isolation.
 tags: [runners, isolation, supply-chain]
+prerequisites: []
+objectives:
+  - Explain how persistent runners carry state between jobs
+  - Use ephemeral runners or isolate self-hosted ones
+references:
+  - page: github-actions
+    label: Runner security guide
 validation:
   type: workflow-check
   expected:

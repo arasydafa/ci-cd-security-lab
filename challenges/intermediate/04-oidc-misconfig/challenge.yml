@@ -10,6 +10,13 @@ description: |
   is too broad. Any repository in your org can assume the role.
   Lock down the OIDC trust to specific repositories and branches.
 tags: [oidc, aws, iam, trust-policy]
+prerequisites: [secrets-leak, permissions-overkill]
+objectives:
+  - Replace static keys with OIDC role assumption
+  - Scope the trust policy to specific repositories and branches
+references:
+  - page: github-actions
+    label: OIDC authentication guide
 validation:
   type: workflow-check
   expected:

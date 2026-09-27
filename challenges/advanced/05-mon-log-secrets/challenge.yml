@@ -10,6 +10,13 @@ description: |
   logs that persist in storage. Anyone with log access can extract credentials.
   Use secret masking and filter sensitive output.
 tags: [monitoring, logs, secrets, masking]
+prerequisites: [secrets-leak]
+objectives:
+  - Mask secrets before they reach logs
+  - Filter sensitive fields from structured output
+references:
+  - page: monitoring
+    label: Log hygiene guide
 validation:
   type: workflow-check
   expected:

@@ -10,6 +10,13 @@ description: |
   An attacker could modify the script to inject malicious code.
   Always verify checksums before executing downloaded code.
 tags: [supply-chain, script-execution]
+prerequisites: [unsafe-deps]
+objectives:
+  - Download remote scripts before executing anything
+  - Verify checksums against a trusted value
+references:
+  - page: github-actions
+    label: Supply chain safety guide
 validation:
   type: workflow-check
   expected:

@@ -10,6 +10,13 @@ description: |
   Privileged containers have full access to the host — equivalent to root on the node.
   Remove the privileged flag and add specific capabilities only if needed.
 tags: [kubernetes, privileged, pod-security]
+prerequisites: []
+objectives:
+  - Drop the privileged flag from the container
+  - Grant only the capabilities the workload needs
+references:
+  - page: kubernetes
+    label: Pod security guide
 validation:
   type: workflow-check
   expected:

@@ -70,6 +70,9 @@ function loadAll() {
         estimatedTime: meta.estimated_time || '15m',
         description: meta.description || '',
         tags: meta.tags || [],
+        prerequisites: meta.prerequisites || [],
+        objectives: meta.objectives || [],
+        references: meta.references || [],
         scenario: readIfExists(path.join(base, 'scenario.md')),
         vulnerableWorkflow: readIfExists(path.join(base, 'vulnerable', 'workflow.yml')),
         solutionWorkflow: readIfExists(path.join(base, 'solution', 'workflow.yml')),
@@ -96,6 +99,9 @@ export interface StaticChallenge {
   estimatedTime: string;
   description: string;
   tags: string[];
+  prerequisites: string[];
+  objectives: string[];
+  references: { page: string; label: string }[];
   scenario: string;
   vulnerableWorkflow: string;
   solutionWorkflow: string;

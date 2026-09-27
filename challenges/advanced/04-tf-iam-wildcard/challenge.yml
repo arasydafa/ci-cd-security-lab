@@ -10,6 +10,13 @@ description: |
   Any entity with this policy can do anything to any AWS resource.
   Apply least-privilege IAM with specific actions and resource ARNs.
 tags: [terraform, aws, iam, least-privilege]
+prerequisites: [permissions-overkill]
+objectives:
+  - Replace wildcard actions with specific API calls
+  - Scope resources to exact ARNs
+references:
+  - page: terraform
+    label: IAM least privilege guide
 validation:
   type: workflow-check
   expected:

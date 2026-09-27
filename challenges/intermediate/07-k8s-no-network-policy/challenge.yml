@@ -10,6 +10,13 @@ description: |
   Any pod can communicate with any other pod — including databases, payment
   services, and admin panels. Add NetworkPolicies to isolate your services.
 tags: [kubernetes, network-policy, segmentation]
+prerequisites: []
+objectives:
+  - Deny traffic by default between services
+  - Allow-list only required service paths
+references:
+  - page: kubernetes
+    label: Network segmentation guide
 validation:
   type: workflow-check
   expected:

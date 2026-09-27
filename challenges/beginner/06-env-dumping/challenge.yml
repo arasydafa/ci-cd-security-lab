@@ -10,6 +10,14 @@ description: |
   But environment variables include secrets — and CI logs are stored forever.
   Remove the env dump to prevent credential exposure.
 tags: [secrets, logging, env]
+prerequisites: [secrets-leak]
+objectives:
+  - List what lives in a job environment beyond your own variables
+  - Remove debug dumps from workflows
+  - Mask values that must be printed
+references:
+  - page: github-actions
+    label: Secrets handling guide
 validation:
   type: workflow-check
   expected:

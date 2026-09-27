@@ -10,6 +10,13 @@ description: |
   A compromised action could be updated to inject malicious code.
   Pin actions to full commit SHAs for supply chain safety.
 tags: [supply-chain, actions, pinning]
+prerequisites: []
+objectives:
+  - Explain why mutable tags are deploy-time code changes
+  - Pin actions to full commit SHAs with version comments
+references:
+  - page: github-actions
+    label: Pin actions to SHA guide
 validation:
   type: workflow-check
   expected:

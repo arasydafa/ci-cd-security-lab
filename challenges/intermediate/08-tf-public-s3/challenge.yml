@@ -10,6 +10,13 @@ description: |
   stored in the bucket is exposed to the entire internet. Use private ACLs
   and enable public access blocks.
 tags: [terraform, aws, s3, public-access]
+prerequisites: []
+objectives:
+  - Enforce private ACLs and public access blocks
+  - Enable encryption on stored data
+references:
+  - page: terraform
+    label: Storage hardening guide
 validation:
   type: workflow-check
   expected:

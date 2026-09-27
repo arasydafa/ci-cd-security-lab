@@ -10,6 +10,13 @@ description: |
   secrets (database passwords, API keys) and cause merge conflicts.
   Use remote state and add *.tfstate to .gitignore.
 tags: [terraform, state, git]
+prerequisites: []
+objectives:
+  - Move state to an encrypted remote backend
+  - Keep tfstate and tfvars out of git
+references:
+  - page: terraform
+    label: State security guide
 validation:
   type: workflow-check
   expected:

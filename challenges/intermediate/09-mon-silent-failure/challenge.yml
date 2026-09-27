@@ -10,6 +10,13 @@ description: |
   and there are no failure notifications. Bad deploys go unnoticed for hours.
   Remove error suppression and add failure alerts.
 tags: [monitoring, alerts, error-handling]
+prerequisites: [mon-no-build-status, error-swallowing]
+objectives:
+  - Remove error suppression from security steps
+  - Add failure alerts that reach a human
+references:
+  - page: monitoring
+    label: Failure alerts guide
 validation:
   type: workflow-check
   expected:

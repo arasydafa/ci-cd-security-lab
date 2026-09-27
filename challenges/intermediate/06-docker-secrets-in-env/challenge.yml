@@ -10,6 +10,13 @@ description: |
   Anyone with image pull access can extract the secrets using docker history.
   Use build secrets or runtime environment variables instead.
 tags: [docker, secrets, image-layers]
+prerequisites: [secrets-leak, docker-running-as-root]
+objectives:
+  - Keep secrets out of image layers
+  - Use build secrets or runtime environment variables
+references:
+  - page: docker
+    label: Secrets handling guide
 validation:
   type: workflow-check
   expected:

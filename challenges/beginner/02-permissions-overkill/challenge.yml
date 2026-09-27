@@ -10,6 +10,13 @@ description: |
   modify code, create releases, or access other repository resources.
   Apply the principle of least privilege.
 tags: [permissions, least-privilege]
+prerequisites: []
+objectives:
+  - Scope GITHUB_TOKEN with least privilege
+  - Set workflow-level deny plus per-job grants
+references:
+  - page: github-actions
+    label: Least-privilege permissions guide
 validation:
   type: workflow-check
   expected:
