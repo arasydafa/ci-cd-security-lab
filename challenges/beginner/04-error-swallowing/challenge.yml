@@ -12,7 +12,9 @@ tags: [reliability, error-handling]
 validation:
   type: workflow-check
   expected:
-    - should_not_contain: ["|| echo"]
+    # Semantic check: failures must propagate (no || echo suppression).
+    - predicate: no-rule-findings
+      rules: [error-swallow]
 scoring:
   hints_used_penalty: 25
   time_bonus: 30

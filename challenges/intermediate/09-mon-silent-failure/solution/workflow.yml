@@ -34,8 +34,12 @@ jobs:
 
       - name: Notify on failure
         if: failure()
+        env:
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          REF: ${{ github.ref_name }}
         run: |
-          echo "DEPLOYMENT FAILED — alerting team"
-          echo "Repository: ${{ github.repository }}"
-          echo "Commit: ${{ github.sha }}"
-          echo "Branch: ${{ github.ref_name }}"
+          echo "DEPLOYMENT FAILED - alerting team"
+          echo "Repository: $REPO"
+          echo "Commit: $SHA"
+          echo "Branch: $REF"

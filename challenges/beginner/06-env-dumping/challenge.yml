@@ -13,7 +13,9 @@ tags: [secrets, logging, env]
 validation:
   type: workflow-check
   expected:
-    - should_not_contain: ["env | grep", "printenv", "env | head"]
+    # Semantic check: no environment dumps that would leak secrets.
+    - predicate: no-rule-findings
+      rules: [env-dump]
 scoring:
   hints_used_penalty: 25
   time_bonus: 50

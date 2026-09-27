@@ -13,7 +13,9 @@ tags: [supply-chain, actions, pinning]
 validation:
   type: workflow-check
   expected:
-    - should_not_contain: ["uses: actions/checkout@v3", "uses: actions/setup-node@v3"]
+    # Semantic check: every third-party action pinned to a full commit SHA.
+    # Stronger than the old @v3 substring match — @v4 tags are equally mutable.
+    - predicate: all-uses-pinned
 scoring:
   hints_used_penalty: 25
   time_bonus: 50

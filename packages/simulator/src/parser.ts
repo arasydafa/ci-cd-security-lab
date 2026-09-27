@@ -95,8 +95,9 @@ function parseStep(raw: Record<string, unknown>): Step {
   };
 }
 
-function parsePermissions(raw: unknown): PermissionsConfig | undefined {
-  if (typeof raw === 'string') return undefined;
+function parsePermissions(raw: unknown): PermissionsConfig | string | undefined {
+  // String forms (e.g. write-all) are preserved: checkPermissions handles them.
+  if (typeof raw === 'string') return raw;
   if (typeof raw !== 'object' || raw === null) return undefined;
   return raw as PermissionsConfig;
 }

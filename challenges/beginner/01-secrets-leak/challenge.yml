@@ -12,8 +12,9 @@ tags: [secrets, aws, logging]
 validation:
   type: workflow-check
   expected:
-    - should_not_contain: ["AKIA", "SECRET_KEY", "echo ${{ secrets"]
-      step: "Build"
+    # Semantic checks: no leaked keys, no hardcoded credentials, no secret echo.
+    - predicate: no-rule-findings
+      rules: [aws-access-key, hardcoded-credential, secrets-echo-expression]
 scoring:
   hints_used_penalty: 25
   time_bonus: 50

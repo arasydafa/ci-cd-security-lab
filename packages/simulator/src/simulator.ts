@@ -1,9 +1,12 @@
 import type { WorkflowFile, Job, Step, WorkflowResult, JobResult, StepResult, SecurityFinding } from '@cicd-lab/shared';
 import { Executor } from './executor.js';
 import { SimulationContext, createContext, checkPermissions } from './environment.js';
+import { runRules } from './rules.js';
 
 export interface SimulationOptions {
   workflow: WorkflowFile;
+  /** Raw YAML source — enables detection rules with line attribution. */
+  rawYaml?: string;
   context?: Partial<SimulationContext>;
 }
 
@@ -68,6 +71,11 @@ export async function simulate(options: SimulationOptions): Promise<WorkflowResu
 
   const endTime = new Date();
   const allPassed = jobResults.every((j) => j.status === 'success' || j.status === 'skipped');
+
+  // Static detection rules (registry) — pure AST/YAML analysis with line attribution.
+  if (options.rawYaml) {
+    ctx.findings.push(...runRules({ workflow, rawYaml: options.rawYaml }));
+  }
 
   return {
     success: allPassed,
