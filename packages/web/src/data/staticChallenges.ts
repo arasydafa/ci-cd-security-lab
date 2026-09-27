@@ -40,6 +40,8 @@ export interface ProgressEntry {
   completed: boolean;
   completedAt?: string;
   solutionViewed?: boolean;
+  /** First engagement (hint, run, or solution view) — basis for time_bonus. */
+  startedAt?: string;
 }
 
 export type ProgressData = Record<string, ProgressEntry>;

@@ -42,6 +42,7 @@ interface Challenge {
   scoring: {
     hints_used_penalty: number;
     time_bonus: number;
+    pass_threshold?: number;
   };
 }
 
@@ -67,6 +68,11 @@ interface ScoreResult {
   totalDeductions: number;
   finalScore: number;
   passed: boolean;
+  passedChecks: number;
+  totalChecks: number;
+  partialRatio: number;
+  timeBonusAwarded: number;
+  threshold: number;
 }
 
 interface SimResult {
@@ -193,6 +199,7 @@ export function ChallengeWorkspace() {
             completed: prev?.completed || false,
             completedAt: prev?.completedAt,
             solutionViewed: prev?.solutionViewed,
+            startedAt: prev?.startedAt || new Date().toISOString(),
           },
         };
         setProgress(updated);
@@ -213,6 +220,7 @@ export function ChallengeWorkspace() {
             completed: prev?.completed || false,
             completedAt: prev?.completedAt,
             solutionViewed: prev?.solutionViewed,
+            startedAt: prev?.startedAt || new Date().toISOString(),
           },
         };
         setProgress(updated);
@@ -234,6 +242,7 @@ export function ChallengeWorkspace() {
         completed: prev?.completed || false,
         completedAt: prev?.completedAt,
         solutionViewed: true,
+        startedAt: prev?.startedAt || new Date().toISOString(),
       },
     };
     setProgress(updated);
@@ -263,11 +272,20 @@ export function ChallengeWorkspace() {
     }
     setSimulating(true);
     setResult(null);
+    // startedAt anchors the time_bonus clock; first run starts it.
+    const prevRun = id ? progress[id] : undefined;
+    const startedAt = prevRun?.startedAt || new Date().toISOString();
+    const elapsedMs = Date.now() - new Date(startedAt).getTime();
     try {
       const res = await fetch('/api/v1/simulate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ challengeId: id, workflowYaml: workflow }),
+        body: JSON.stringify({
+          challengeId: id,
+          workflowYaml: workflow,
+          hintsUsed: prevRun?.hintsUsed || 0,
+          elapsedMs: Math.max(0, elapsedMs),
+        }),
       });
       const d = await res.json();
       if (d.data) {
@@ -284,6 +302,7 @@ export function ChallengeWorkspace() {
             completed: score.passed ? true : (prev?.completed || false),
             completedAt: score.passed ? new Date().toISOString() : prev?.completedAt,
             solutionViewed: prev?.solutionViewed,
+            startedAt,
           },
         };
         setProgress(updated);
@@ -608,9 +627,18 @@ export function ChallengeWorkspace() {
                       <span className="text-sm font-normal opacity-60"> / {result.score.basePoints}</span>
                     </span>
                   </div>
+                  <div className="text-xs opacity-80">
+                    {result.score.passedChecks}/{result.score.totalChecks} fixed
+                    {` (${Math.round(result.score.partialRatio * 100)}% of ${result.score.basePoints} pts)`}
+                  </div>
                   {result.score.totalDeductions > 0 && (
                     <div className="text-xs opacity-80">
                       {result.score.hintsUsed} hint(s) used: -{result.score.totalDeductions} pts
+                    </div>
+                  )}
+                  {result.score.timeBonusAwarded > 0 && (
+                    <div className="text-xs opacity-80">
+                      Fast solve bonus: +{result.score.timeBonusAwarded} pts
                     </div>
                   )}
                 </div>
