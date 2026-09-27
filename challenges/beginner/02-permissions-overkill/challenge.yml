@@ -13,7 +13,10 @@ tags: [permissions, least-privilege]
 validation:
   type: workflow-check
   expected:
-    - should_not_contain: ["write-all"]
+    # Semantic checks: no broad grants, and permissions declared explicitly
+    # (least privilege). Replaces the old write-all substring match.
+    - predicate: no-write-all
+    - predicate: has-explicit-permissions
 scoring:
   hints_used_penalty: 25
   time_bonus: 30

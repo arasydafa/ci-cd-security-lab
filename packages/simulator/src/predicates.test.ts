@@ -83,6 +83,25 @@ describe('predicates', () => {
     assert.equal(checkPredicate(clean, 'no-interpolation-in-run').passed, true);
   });
 
+  it('permissions-overkill: solution passes, vulnerable fails breadth check', () => {
+    const solution = loadChallengeFile('beginner', '02-permissions-overkill', 'solution');
+    const vulnerable = loadChallengeFile('beginner', '02-permissions-overkill', 'vulnerable');
+    assert.equal(checkPredicate(solution, 'no-write-all').passed, true);
+    assert.equal(checkPredicate(solution, 'has-explicit-permissions').passed, true);
+    assert.equal(checkPredicate(vulnerable, 'no-write-all').passed, false);
+    // write-all IS explicit — explicitness passes, breadth fails. Correct semantics.
+    assert.equal(checkPredicate(vulnerable, 'has-explicit-permissions').passed, true);
+  });
+
+  it('unsafe-deps: SHA-pinned solution passes, tag-based fails', () => {
+    const solution = loadChallengeFile('beginner', '03-unsafe-deps', 'solution');
+    const vulnerable = loadChallengeFile('beginner', '03-unsafe-deps', 'vulnerable');
+    assert.equal(checkPredicate(solution, 'all-uses-pinned').passed, true);
+    const bad = checkPredicate(vulnerable, 'all-uses-pinned');
+    assert.equal(bad.passed, false);
+    assert.ok(bad.message && bad.message.includes('@v'));
+  });
+
   it('unknown predicates fail closed with a loud message', () => {
     const yaml = 'name: T\non: push\njobs:\n  t:\n    runs-on: x\n    steps:\n      - run: echo hi\n';
     const workflow = parseWorkflow(yaml);
