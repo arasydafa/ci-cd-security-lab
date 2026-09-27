@@ -28,6 +28,9 @@ const vuln8_good = 'on: pull_request  # fork code, read-only token, no secrets\n
 const vuln9_bad = 'jobs:\n  deploy-prod:\n    runs-on: ubuntu-latest\n    steps:\n      - run: ./deploy.sh --target prod  # no gate: any push deploys';
 const vuln9_good = 'jobs:\n  deploy-prod:\n    runs-on: ubuntu-latest\n    environment: production  # reviewers + branch policy in Settings\n    steps:\n      - run: ./deploy.sh --target prod';
 
+const vuln10_bad = 'jobs:\n  publish:\n    steps:\n      - run: npm publish  # no proof these bytes came from this pipeline';
+const vuln10_good = 'permissions:\n  id-token: write\n  attestations: write\njobs:\n  publish:\n    steps:\n      - uses: anchore/sbom-action@v0\n      - uses: actions/attest@v4\n        with:\n          subject-path: dist/**\n      - run: npm publish';
+
 const permExample = 'name: CI\non: push\npermissions: {}  # Start empty\n\njobs:\n  test:\n    permissions:\n      contents: read\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm test\n\n  deploy:\n    permissions:\n      contents: read\n      id-token: write   # For OIDC\n      packages: write   # For GHCR\n    needs: test\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: ./deploy.sh';
 
 const pinExample = '# Pin to SHA, not tag\n- uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1\n- uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4.0.2\n\n# Add to .github/dependabot.yml to auto-update pins\nversion: 2\nupdates:\n  - package-ecosystem: "github-actions"\n    directory: "/"\n    schedule:\n      interval: "weekly"';
@@ -39,6 +42,8 @@ const cacheExample = '# Release jobs restore NO caches — poisoned entries ship
 const pwnExample = '# PWN REQUEST — fork code with base secrets (never do this)\non: pull_request_target\n- uses: actions/checkout@v4\n  with:\n    ref: ${{ github.event.pull_request.head.sha }}\n\n# SAFE — untrusted builds under pull_request (read-only, no secrets)\non: pull_request\n- uses: actions/checkout@v4\n# checkout v7+ also refuses fork checkouts under pull_request_target by default';
 
 const envExample = '# UNGATED — any push that reaches this job ships to production\njobs:\n  deploy-prod:\n    runs-on: ubuntu-latest\n    steps:\n      - run: ./deploy.sh --target prod\n\n# GATED — pauses for reviewers + branch policy (set in Settings > Environments)\njobs:\n  deploy-prod:\n    runs-on: ubuntu-latest\n    environment: production\n    steps:\n      - run: ./deploy.sh --target prod';
+
+const attestExample = '# Attest every release artifact + ship an SBOM\npermissions:\n  contents: read\n  id-token: write      # keyless signing via OIDC\n  attestations: write  # persist the attestation\n\nsteps:\n  - uses: anchore/sbom-action@v0\n  - uses: actions/attest@v4\n    with:\n      subject-path: dist/**\n  - run: npm publish';
 
 export function GitHubActions() {
   return (
@@ -59,6 +64,7 @@ export function GitHubActions() {
         <Vuln num={7} title="Cache Poisoning in Release Jobs" description="Caches are shared across runs. An entry poisoned by a low-privilege run is restored by the release job and shipped with production credentials — the chain behind CVE-2026-45321." bad={vuln7_bad} good={vuln7_good} />
         <Vuln num={8} title="Pwn Requests via pull_request_target" description="Checking out fork code under pull_request_target executes attacker code with a write token and secrets. Checkout v7+ refuses this by default; older pins stay exploitable." bad={vuln8_bad} good={vuln8_good} />
         <Vuln num={9} title="Ungated Production Deploys" description="A deploy job with no environment: key skips required reviewers, wait timers, and branch policies — any push that reaches it ships to production." bad={vuln9_bad} good={vuln9_good} />
+        <Vuln num={10} title="Unattested Releases" description="Published artifacts with no provenance or SBOM give consumers no way to tell your bytes from an impostor substitution." bad={vuln10_bad} good={vuln10_good} />
       </section>
 
       <section>
@@ -108,6 +114,14 @@ export function GitHubActions() {
           unprotected environment instead.
         </p>
         <CodeBlock code={envExample} language="yaml" />
+
+        <h3 className="text-lg font-bold mb-2 mt-6 text-ot-text">Attest Provenance and Ship an SBOM</h3>
+        <p className="text-ot-muted mb-3">
+          Bind every release artifact to its source, commit, and build with a signed
+          attestation, and document dependencies with an SBOM so vulnerable libraries
+          stay visible.
+        </p>
+        <CodeBlock code={attestExample} language="yaml" />
       </section>
 
       <section>
@@ -126,6 +140,7 @@ export function GitHubActions() {
           'Restore no caches in release and publish jobs',
           'Never check out fork refs under pull_request_target',
           'Gate every production deploy behind a protected environment',
+          'Attest release artifacts and ship an SBOM',
         ]} />
       </section>
 
@@ -149,6 +164,7 @@ export function GitHubActions() {
             { id: 'cache-poisoning', label: 'Cache Poisoning' },
             { id: 'pr-target-pwn', label: 'Pwn Request' },
             { id: 'ungated-prod', label: 'Ungated Prod' },
+            { id: 'slsa-provenance', label: 'Prove the Build' },
           ]}
         />
       </section>
