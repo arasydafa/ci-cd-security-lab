@@ -1,0 +1,29 @@
+id: runner-ghost
+title: "Runner Ghost"
+level: advanced
+topic: github-actions
+category: security
+estimated_time: 20m
+points: 200
+description: |
+  This PR workflow runs untrusted code on a persistent self-hosted runner with
+  default checkout settings. Tokens and workspace files from earlier jobs haunt
+  every later run. Stop credentials from surviving the job.
+tags: [self-hosted, runners, persistence]
+prerequisites: [self-hosted-risk]
+objectives:
+  - Explain how checkout credentials and workspaces persist on non-ephemeral runners
+  - Set persist-credentials false where no push is needed and isolate untrusted jobs
+  - Verify no token survives the job on shared runners
+references:
+  - page: github-actions
+    label: Self-hosted runner isolation guide
+validation:
+  type: workflow-check
+  expected:
+    # Semantic check: no credential-keeping checkout on persistent runners.
+    - predicate: no-rule-findings
+      rules: [runner-ghost-credentials]
+scoring:
+  hints_used_penalty: 50
+  time_bonus: 100

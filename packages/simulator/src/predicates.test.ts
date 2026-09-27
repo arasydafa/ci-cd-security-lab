@@ -267,6 +267,53 @@ describe('predicates', () => {
     );
   });
 
+  it('fase 4d (runtime detection): solutions pass, vulnerable fail', () => {
+    const cases: { level: string; id: string; predicate: string; rules?: string[] }[] = [
+      {
+        level: 'advanced',
+        id: '08-runner-ghost',
+        predicate: 'no-rule-findings',
+        rules: ['runner-ghost-credentials'],
+      },
+      {
+        level: 'intermediate',
+        id: '15-sarif-alerting',
+        predicate: 'no-rule-findings',
+        rules: ['scan-without-sarif'],
+      },
+    ];
+    for (const c of cases) {
+      const solution = loadChallengeFile(c.level, c.id, 'solution');
+      const vulnerable = loadChallengeFile(c.level, c.id, 'vulnerable');
+      assert.equal(checkPredicate(solution, c.predicate, c.rules).passed, true, `${c.id} solution`);
+      assert.equal(checkPredicate(vulnerable, c.predicate, c.rules).passed, false, `${c.id} vulnerable`);
+    }
+  });
+
+  it('fase 4d: cosmetic evasions still fail', () => {
+    // Wiping the workspace does not remove persisted credentials.
+    const ghostSolution = loadChallengeFile('advanced', '08-runner-ghost', 'solution');
+    const ghostEvasion = ghostSolution.replace('persist-credentials: false', 'clean: true');
+    assert.equal(
+      checkPredicate(ghostEvasion, 'no-rule-findings', ['runner-ghost-credentials']).passed,
+      false,
+    );
+    // Mentioning the upload in an echo uploads nothing.
+    const sarifSolution = loadChallengeFile('intermediate', '15-sarif-alerting', 'solution');
+    const sarifEvasion = sarifSolution
+      .split('\n')
+      .filter((l) => !l.includes('upload-sarif') && !l.includes('sarif_file'))
+      .join('\n')
+      .replace(
+        '      - name: Run tests',
+        '      - run: echo "upload-sarif results.sarif"\n\n      - name: Run tests',
+      );
+    assert.equal(
+      checkPredicate(sarifEvasion, 'no-rule-findings', ['scan-without-sarif']).passed,
+      false,
+    );
+  });
+
   it('fase 4b: cosmetic evasions still fail', () => {
     // A comment claiming a digest does not pin the FROM line.
     const digestSolution = loadChallengeFile('intermediate', '12-docker-digest-pin', 'solution');

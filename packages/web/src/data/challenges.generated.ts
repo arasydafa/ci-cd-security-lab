@@ -860,6 +860,42 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
     "hintsPenalty": 30
   },
   {
+    "id": "sarif-alerting",
+    "title": "Silent Scanner",
+    "level": "intermediate",
+    "topic": "monitoring",
+    "points": 150,
+    "estimatedTime": "15m",
+    "description": "This workflow runs a Trivy vulnerability scan but never uploads the SARIF,\nso findings never become code-scanning alerts. The run stays green while\nvulnerabilities sit unread. Surface the results as alerts.\n",
+    "tags": [
+      "sarif",
+      "scanning",
+      "alerting"
+    ],
+    "prerequisites": [
+      "mon-no-build-status"
+    ],
+    "objectives": [
+      "Explain why scan output without SARIF upload produces no alerts",
+      "Upload results with upload-sarif and security-events write",
+      "Verify findings appear as code-scanning alerts"
+    ],
+    "references": [
+      {
+        "page": "monitoring",
+        "label": "Code scanning alerts guide"
+      }
+    ],
+    "scenario": "# Scenario: Silent Scanner\n\nYour pipeline runs a Trivy vulnerability scan on every push. The scan works —\nbut the SARIF file it produces is never uploaded anywhere. No upload means no\ncode-scanning alerts: the Security tab stays empty, nobody is notified, and\nthe run badge stays green while known vulnerabilities sit in your\ndependencies.\n\nThe upload step is what turns scanner output into alerts, and it needs the\n`security-events: write` permission — without it the upload is rejected with\n`Resource not accessible by integration`, green run and all.\n\n**Your mission:** Upload the SARIF results with the alerting permission so\nfindings surface where humans look.\n\n## Key concepts\n- Scanner output alone creates zero alerts — only an upload does\n- `github/codeql-action/upload-sarif` needs `sarif_file` plus `security-events: write`\n- Green runs mean nothing if results never reach the Security tab\n",
+    "vulnerableWorkflow": "name: Security Scan\n\non:\n  push:\n    branches: [main]\n\npermissions:\n  contents: read\n\njobs:\n  scan:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Run Trivy scan\n        run: trivy fs --format sarif --output results.sarif .\n\n      - name: Run tests\n        run: npm test\n",
+    "solutionWorkflow": "name: Security Scan\n\non:\n  push:\n    branches: [main]\n\npermissions:\n  contents: read\n  security-events: write\n\njobs:\n  scan:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Run Trivy scan\n        run: trivy fs --format sarif --output results.sarif .\n\n      - name: Upload SARIF\n        uses: github/codeql-action/upload-sarif@v4\n        with:\n          sarif_file: results.sarif\n\n      - name: Run tests\n        run: npm test\n",
+    "hints": [
+      "# Hint 1: Where results go to die\n\nThe Trivy step writes `results.sarif` to the workspace and nothing ever reads\nit. Search the workflow for `upload-sarif` — there is no upload step, so GitHub\nnever learns the findings exist.\n",
+      "# Hint 2: The fix\n\nAdd `github/codeql-action/upload-sarif@v4` with `sarif_file: results.sarif`\nafter the scan, and grant `security-events: write` — without that permission\nthe upload is rejected and the silence continues.\n"
+    ],
+    "hintsPenalty": 30
+  },
+  {
     "id": "reusable-workflow-injection",
     "title": "Reusable Workflow Injection",
     "level": "advanced",
@@ -1108,6 +1144,42 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
     "hints": [
       "# Hint 1: What is missing\r\n\r\nThe workflow builds and publishes, but no step vouches for the artifact.\r\nLook for `actions/attest` (or the older `attest-build-provenance`) and any\r\nSBOM generation — neither exists, so consumers trust the bytes blindly.\r\n",
       "# Hint 2: The fix\r\n\r\nAdd `actions/attest@v4` with `subject-path: 'dist/**'` after the download,\r\nplus `id-token: write` and `attestations: write` permissions. Add\r\n`anchore/sbom-action@v0` so dependencies are documented too.\r\n"
+    ],
+    "hintsPenalty": 50
+  },
+  {
+    "id": "runner-ghost",
+    "title": "Runner Ghost",
+    "level": "advanced",
+    "topic": "github-actions",
+    "points": 200,
+    "estimatedTime": "20m",
+    "description": "This PR workflow runs untrusted code on a persistent self-hosted runner with\ndefault checkout settings. Tokens and workspace files from earlier jobs haunt\nevery later run. Stop credentials from surviving the job.\n",
+    "tags": [
+      "self-hosted",
+      "runners",
+      "persistence"
+    ],
+    "prerequisites": [
+      "self-hosted-risk"
+    ],
+    "objectives": [
+      "Explain how checkout credentials and workspaces persist on non-ephemeral runners",
+      "Set persist-credentials false where no push is needed and isolate untrusted jobs",
+      "Verify no token survives the job on shared runners"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "Self-hosted runner isolation guide"
+      }
+    ],
+    "scenario": "# Scenario: Runner Ghost\n\nYour pull-request workflow runs on a persistent self-hosted runner for speed.\nThe checkout step uses defaults — which means `persist-credentials: true` —\nso the job token is written into `.git/config` in the workspace. The workspace\nitself is never wiped between jobs either.\n\nThose leftovers haunt every later run on that host: files, credentials, even\nprocesses from earlier jobs are still there when the next PR — possibly from a\nstranger's fork — starts executing. One malicious PR harvests the previous\njob's token and the haunting continues.\n\n**Your mission:** Stop credentials from surviving the job. Disable credential\npersistence where no push is needed, and keep untrusted work off persistent\nrunners.\n\n## Key concepts\n- Checkout persists the token to disk unless told otherwise\n- Persistent runners share filesystem state across jobs and trust levels\n- Ephemeral single-job runners (or containers) leave no ghost behind\n",
+    "vulnerableWorkflow": "name: PR Build\n\non:\n  pull_request:\n    branches: [main]\n\npermissions:\n  contents: read\n\njobs:\n  pr-build:\n    runs-on: [self-hosted, linux]\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Run PR tests\n        run: npm test\n",
+    "solutionWorkflow": "name: PR Build\n\non:\n  pull_request:\n    branches: [main]\n\npermissions:\n  contents: read\n\njobs:\n  pr-build:\n    runs-on: [self-hosted, linux]\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          persist-credentials: false\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Run PR tests\n        run: npm test\n",
+    "hints": [
+      "# Hint 1: Defaults that haunt\n\n`actions/checkout` stores credentials in `.git/config` unless\n`persist-credentials: false` is set. On a persistent `self-hosted` runner\nthat file — and the whole `_work` directory — is still there when the next\njob starts.\n",
+      "# Hint 2: The fix\n\nAdd `with: persist-credentials: false` to checkouts that never push, and move\nuntrusted PR work to ephemeral runners or containers so nothing survives\nbetween jobs.\n"
     ],
     "hintsPenalty": 50
   }
