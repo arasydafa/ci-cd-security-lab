@@ -10,6 +10,13 @@ description: |
   Any pod with the bound ServiceAccount can read secrets, create pods,
   and escalate to cluster-admin. Apply least-privilege RBAC.
 tags: [kubernetes, rbac, privilege-escalation]
+prerequisites: [permissions-overkill]
+objectives:
+  - Remove wildcard verbs and resources from bindings
+  - Scope roles to namespaces that need them
+references:
+  - page: kubernetes
+    label: RBAC hardening guide
 validation:
   type: workflow-check
   expected:

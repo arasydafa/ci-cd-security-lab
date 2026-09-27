@@ -11,6 +11,13 @@ description: |
   the host's Docker daemon — effectively root access.
   Use remote builders or kaniko instead.
 tags: [docker, socket, privilege-escalation]
+prerequisites: [docker-running-as-root]
+objectives:
+  - Explain why daemon control equals host root
+  - Build inside remote builders or unprivileged tools
+references:
+  - page: docker
+    label: Container escape guide
 validation:
   type: workflow-check
   expected:

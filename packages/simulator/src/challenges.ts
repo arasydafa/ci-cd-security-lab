@@ -71,6 +71,9 @@ export class ChallengeManager {
       points: (meta.points as number) || 100,
       description: (meta.description as string) || '',
       tags: (meta.tags as string[]) || [],
+      prerequisites: (meta.prerequisites as string[]) || [],
+      objectives: (meta.objectives as string[]) || [],
+      references: (meta.references as Challenge['references']) || [],
       validation: {
         type: (meta.validation as Record<string, unknown>)?.type as Challenge['validation']['type'] || 'workflow-check',
         expected: ((meta.validation as Record<string, unknown>)?.expected as any[]) || [],

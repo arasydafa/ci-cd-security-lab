@@ -3,10 +3,26 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight, Play, X } from 'lucide-react';
 import { Alert, Badge, Button, Card, EmptyState, Skeleton, Tabs } from '@omega-os/ui';
 import type { BadgeTone } from '@omega-os/ui';
-import { staticDetail, staticHint, staticSolution } from '../data/staticChallenges.js';
+import {
+  dependentsOf,
+  isCleanSolve,
+  loadProgress,
+  relatedTo,
+  saveProgress,
+  solvedWithSolution,
+  staticDetail,
+  staticHint,
+  staticSolution,
+  type ProgressData,
+} from '../data/staticChallenges.js';
 import { MarkdownRenderer } from '../components/MarkdownRenderer.js';
 import { YamlEditor } from '../components/YamlEditor.js';
 import { CodeBlock } from '../components/CodeBlock.js';
+
+interface ChallengeRef {
+  page: string;
+  label: string;
+}
 
 interface Challenge {
   id: string;
@@ -20,6 +36,9 @@ interface Challenge {
   vulnerableWorkflow: string;
   hintCount: number;
   tags: string[];
+  prerequisites: string[];
+  objectives: string[];
+  references: ChallengeRef[];
   scoring: {
     hints_used_penalty: number;
     time_bonus: number;
@@ -62,29 +81,6 @@ interface SimResult {
     checks: ValidationCheck[];
   };
   score: ScoreResult;
-}
-
-interface ProgressEntry {
-  attempts: number;
-  hintsUsed: number;
-  bestScore: number;
-  completed: boolean;
-  completedAt?: string;
-}
-
-type ProgressData = Record<string, ProgressEntry>;
-
-function loadProgress(): ProgressData {
-  try {
-    const raw = localStorage.getItem('cicd-lab-progress');
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveProgress(data: ProgressData): void {
-  localStorage.setItem('cicd-lab-progress', JSON.stringify(data));
 }
 
 const severityTones: Record<string, { tone: BadgeTone; bg: string; border: string }> = {
@@ -130,6 +126,11 @@ export function ChallengeWorkspace() {
   useEffect(() => {
     if (!id) return;
     setProgress(loadProgress());
+    setHints({});
+    setResult(null);
+    setShowSolution(false);
+    setSolution('');
+    setLoading(true);
     fetch(`/api/v1/challenges/${id}`)
       .then((r) => {
         if (!r.ok) throw new Error('api unavailable');
@@ -137,7 +138,12 @@ export function ChallengeWorkspace() {
       })
       .then((d) => {
         if (d.data) {
-          setChallenge(d.data);
+          setChallenge({
+            ...d.data,
+            prerequisites: d.data.prerequisites || [],
+            objectives: d.data.objectives || [],
+            references: d.data.references || [],
+          });
           setWorkflow(d.data.vulnerableWorkflow || '');
         }
         setLoading(false);
@@ -145,7 +151,12 @@ export function ChallengeWorkspace() {
       .catch(() => {
         const detail = staticDetail(id);
         if (detail) {
-          setChallenge(detail);
+          setChallenge({
+            ...detail,
+            prerequisites: (detail as Challenge).prerequisites || [],
+            objectives: (detail as Challenge).objectives || [],
+            references: (detail as Challenge).references || [],
+          } as Challenge);
           setWorkflow(detail.vulnerableWorkflow || '');
           setOffline(true);
         }
@@ -154,6 +165,12 @@ export function ChallengeWorkspace() {
   }, [id]);
 
   const hintsUsed = id ? (progress[id]?.hintsUsed || 0) : 0;
+  const entry = id ? progress[id] : undefined;
+  const clean = isCleanSolve(entry);
+  const withSolution = solvedWithSolution(entry);
+
+  const nextSteps = useMemo(() => (id ? dependentsOf(id) : []), [id]);
+  const related = useMemo(() => (id ? relatedTo(id, 4) : []), [id]);
 
   const loadHint = useCallback(async (num: number) => {
     if (!id) return;
@@ -164,7 +181,7 @@ export function ChallengeWorkspace() {
       const d = await res.json();
       if (d.data) {
         setHints((h) => ({ ...h, [num]: d.data.hint }));
-        // Track hint usage
+        // Track hint usage — retry without hints stays distinguishable.
         const newHintsUsed = Math.max((progress[id]?.hintsUsed || 0), num);
         const prev = progress[id];
         const updated = {
@@ -175,6 +192,7 @@ export function ChallengeWorkspace() {
             bestScore: prev?.bestScore || 0,
             completed: prev?.completed || false,
             completedAt: prev?.completedAt,
+            solutionViewed: prev?.solutionViewed,
           },
         };
         setProgress(updated);
@@ -182,23 +200,59 @@ export function ChallengeWorkspace() {
       }
     } catch {
       const hint = staticHint(id, num);
-      if (hint) setHints((h) => ({ ...h, [num]: hint }));
+      if (hint) {
+        setHints((h) => ({ ...h, [num]: hint }));
+        const newHintsUsed = Math.max((progress[id]?.hintsUsed || 0), num);
+        const prev = progress[id];
+        const updated = {
+          ...progress,
+          [id]: {
+            attempts: prev?.attempts || 0,
+            hintsUsed: newHintsUsed,
+            bestScore: prev?.bestScore || 0,
+            completed: prev?.completed || false,
+            completedAt: prev?.completedAt,
+            solutionViewed: prev?.solutionViewed,
+          },
+        };
+        setProgress(updated);
+        saveProgress(updated);
+      }
     }
   }, [id, hints, progress]);
 
+  const markSolutionViewed = useCallback(() => {
+    if (!id) return;
+    const prev = progress[id];
+    if (prev?.solutionViewed) return;
+    const updated = {
+      ...progress,
+      [id]: {
+        attempts: prev?.attempts || 0,
+        hintsUsed: prev?.hintsUsed || 0,
+        bestScore: prev?.bestScore || 0,
+        completed: prev?.completed || false,
+        completedAt: prev?.completedAt,
+        solutionViewed: true,
+      },
+    };
+    setProgress(updated);
+    saveProgress(updated);
+  }, [id, progress]);
+
   const loadSolution = useCallback(async () => {
     if (!id) return;
-    if (solution) { setShowSolution(!showSolution); return; }
+    if (solution) { setShowSolution(!showSolution); if (!showSolution) markSolutionViewed(); return; }
     try {
       const res = await fetch(`/api/v1/challenges/${id}/solution`);
       if (!res.ok) throw new Error('api unavailable');
       const d = await res.json();
-      if (d.data) { setSolution(d.data.workflow); setShowSolution(true); }
+      if (d.data) { setSolution(d.data.workflow); setShowSolution(true); markSolutionViewed(); }
     } catch {
       const s = staticSolution(id);
-      if (s) { setSolution(s); setShowSolution(true); }
+      if (s) { setSolution(s); setShowSolution(true); markSolutionViewed(); }
     }
-  }, [id, solution, showSolution]);
+  }, [id, solution, showSolution, markSolutionViewed]);
 
   const runSimulation = useCallback(async () => {
     if (!id) return;
@@ -218,17 +272,18 @@ export function ChallengeWorkspace() {
       const d = await res.json();
       if (d.data) {
         setResult(d.data);
-        // Save progress
+        // Save progress — preserve solutionViewed so clean vs solved-with-solution stays visible.
         const prev = progress[id];
         const score = d.data.score;
         const updated = {
           ...progress,
           [id]: {
             attempts: (prev?.attempts || 0) + 1,
-            hintsUsed: score.hintsUsed,
+            hintsUsed: prev?.hintsUsed || score.hintsUsed || 0,
             bestScore: prev ? Math.max(prev.bestScore, score.finalScore) : score.finalScore,
             completed: score.passed ? true : (prev?.completed || false),
             completedAt: score.passed ? new Date().toISOString() : prev?.completedAt,
+            solutionViewed: prev?.solutionViewed,
           },
         };
         setProgress(updated);
@@ -240,7 +295,7 @@ export function ChallengeWorkspace() {
     } finally {
       setSimulating(false);
     }
-  }, [id, workflow, progress]);
+  }, [id, workflow, progress, offline]);
 
   const logLines = useMemo(() => {
     if (!result) return [];
@@ -299,6 +354,8 @@ export function ChallengeWorkspace() {
             {hintsUsed > 0 && (
               <Badge tone="warning">{hintsUsed} hint(s) used</Badge>
             )}
+            {clean && <Badge tone="success">clean-solve</Badge>}
+            {withSolution && !clean && <Badge tone="grey">solved-with-solution</Badge>}
           </div>
         </div>
         <Button
@@ -309,6 +366,59 @@ export function ChallengeWorkspace() {
         >
           Run Simulation
         </Button>
+      </div>
+
+      {/* Learning path: prerequisites / objectives / references */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-ot-muted mb-2">Objectives</h3>
+          {challenge.objectives?.length > 0 ? (
+            <ul className="list-disc pl-5 space-y-1 text-sm text-ot-text">
+              {challenge.objectives.map((o) => (
+                <li key={o}>{o}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-ot-muted">No objectives listed.</p>
+          )}
+        </Card>
+        <Card>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-ot-muted mb-2">Prerequisites</h3>
+          {challenge.prerequisites?.length === 0 ? (
+            <p className="text-sm text-ot-muted">Entry-level — start here.</p>
+          ) : (
+            <ul className="space-y-1 text-sm">
+              {(challenge.prerequisites || []).map((p) => {
+                const done = !!progress[p]?.completed;
+                return (
+                  <li key={p} className="flex items-center gap-2">
+                    {done ? <Check size={14} aria-hidden className="text-success" /> : null}
+                    <Link to={`/challenges/${p}`} className="text-navy-text hover:underline">
+                      {p}
+                    </Link>
+                    <span className="text-xs text-ot-muted">{done ? 'done' : 'required'}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+        <Card>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-ot-muted mb-2">References</h3>
+          {challenge.references?.length > 0 ? (
+            <ul className="space-y-1 text-sm">
+              {challenge.references.map((r) => (
+                <li key={`${r.page}-${r.label}`}>
+                  <Link to={`/reference/${r.page}`} className="inline-flex items-center gap-1 text-navy-text hover:underline">
+                    {r.label} <ArrowRight size={12} aria-hidden />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-ot-muted">No references listed.</p>
+          )}
+        </Card>
       </div>
 
       {offlineNotice && (
@@ -373,6 +483,11 @@ export function ChallengeWorkspace() {
                     {showSolution ? <ChevronDown size={16} aria-hidden /> : <ChevronRight size={16} aria-hidden />}
                     {showSolution ? 'Hide' : 'Show'} Solution
                   </button>
+                  {showSolution && (
+                    <p className="text-xs text-ot-muted mt-1">
+                      Viewing the solution marks this challenge as solved-with-solution (no clean-solve badge).
+                    </p>
+                  )}
                   {showSolution && solution && (
                     <div className="mt-3">
                       <CodeBlock code={solution} language="yaml" showLineNumbers />
@@ -527,6 +642,44 @@ export function ChallengeWorkspace() {
             </Alert>
           )}
         </div>
+      </div>
+
+      {/* Next up + Related */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-ot-muted mb-2">Next up</h3>
+          {nextSteps.length === 0 ? (
+            <p className="text-sm text-ot-muted">No direct follow-ups. Pick from Related.</p>
+          ) : (
+            <ul className="space-y-1 text-sm">
+              {nextSteps.map((n) => (
+                <li key={n.id}>
+                  <Link to={`/challenges/${n.id}`} className="inline-flex items-center gap-1 text-navy-text hover:underline">
+                    {n.title} <ArrowRight size={12} aria-hidden />
+                  </Link>
+                  <span className="text-xs text-ot-muted ml-2">{n.level} · ~{n.estimatedTime}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <Card>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-ot-muted mb-2">Related</h3>
+          {related.length === 0 ? (
+            <p className="text-sm text-ot-muted">No related challenges.</p>
+          ) : (
+            <ul className="space-y-1 text-sm">
+              {related.map((r) => (
+                <li key={r.id}>
+                  <Link to={`/challenges/${r.id}`} className="inline-flex items-center gap-1 text-navy-text hover:underline">
+                    {r.title} <ArrowRight size={12} aria-hidden />
+                  </Link>
+                  <span className="text-xs text-ot-muted ml-2">{r.topic} · {r.level}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       </div>
     </div>
   );

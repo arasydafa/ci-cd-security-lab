@@ -10,6 +10,14 @@ description: |
   variables. An attacker can craft PR titles or issue bodies that
   execute arbitrary code. Sanitize all user-controlled inputs.
 tags: [injection, github-context, script-execution]
+prerequisites: [secrets-leak]
+objectives:
+  - Explain how expression substitution runs before the shell
+  - Route untrusted context through env indirection
+  - Verify the fix with a simulation run
+references:
+  - page: github-actions
+    label: Script injection guide
 validation:
   type: workflow-check
   expected:

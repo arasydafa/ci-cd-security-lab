@@ -9,6 +9,13 @@ description: |
   This workflow swallows build errors with `|| echo`. If the build fails,
   the pipeline continues and may deploy broken code. Let failures propagate.
 tags: [reliability, error-handling]
+prerequisites: []
+objectives:
+  - Let build failures propagate instead of masking them
+  - Gate deploys on successful steps
+references:
+  - page: github-actions
+    label: Failure handling guide
 validation:
   type: workflow-check
   expected:

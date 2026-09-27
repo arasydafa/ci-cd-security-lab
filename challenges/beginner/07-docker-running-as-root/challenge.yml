@@ -10,6 +10,13 @@ description: |
   is compromised, the attacker has full root access to the host kernel.
   Add a non-root USER instruction to your Dockerfile.
 tags: [docker, root, container-security]
+prerequisites: []
+objectives:
+  - Add a non-root USER to the image build
+  - Explain what host access a root container keeps
+references:
+  - page: docker
+    label: Image hardening guide
 validation:
   type: workflow-check
   expected:

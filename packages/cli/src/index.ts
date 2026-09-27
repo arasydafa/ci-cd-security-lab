@@ -41,7 +41,9 @@ program
 
 program
   .command('progress')
-  .description('Show your progress')
-  .action(() => progressCommand());
+  .description('Show your progress (supports web sync via --export/--import)')
+  .option('--export <file>', 'Export progress JSON (web-compatible)')
+  .option('--import <file>', 'Import progress JSON (merges, keeps best score)')
+  .action((opts) => progressCommand(opts));
 
 program.parse();

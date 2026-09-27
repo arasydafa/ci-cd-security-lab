@@ -4,6 +4,11 @@ export type ChallengeLevel = 'beginner' | 'intermediate' | 'advanced';
 export type ChallengeTopic = 'github-actions' | 'docker' | 'kubernetes' | 'terraform' | 'monitoring';
 export type ChallengeCategory = 'security' | 'best-practice' | 'performance';
 
+export interface ChallengeReference {
+  page: string;
+  label: string;
+}
+
 export interface Challenge {
   id: string;
   title: string;
@@ -14,6 +19,12 @@ export interface Challenge {
   points: number;
   description: string;
   tags: string[];
+  /** Challenge ids to complete first. Empty means entry-level. */
+  prerequisites: string[];
+  /** Verb-first observable learning goals. */
+  objectives: string[];
+  /** Suggested guide readings. */
+  references: ChallengeReference[];
   validation: ValidationConfig;
   scoring: ScoringConfig;
   paths: {
@@ -170,6 +181,10 @@ export interface UserProgress {
   hintsUsed: number;
   bestScore: number;
   completedAt?: string;
+  /** True once the learner revealed the solution. Distinguishes clean solves. */
+  solutionViewed?: boolean;
+  /** True when completed with 0 hints and without viewing the solution. */
+  cleanSolve?: boolean;
 }
 
 export interface SimulationRequest {

@@ -10,6 +10,13 @@ description: |
   fail, nobody knows — broken code gets merged silently. Add status checks
   to make failures visible.
 tags: [monitoring, status, visibility]
+prerequisites: []
+objectives:
+  - Report build status back to the commit
+  - Make failures visible before merge
+references:
+  - page: monitoring
+    label: Build visibility guide
 validation:
   type: workflow-check
   expected:
