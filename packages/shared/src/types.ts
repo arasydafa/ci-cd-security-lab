@@ -100,6 +100,8 @@ export interface Job {
   needs?: string | string[];
   if?: string;
   permissions?: PermissionsConfig | string;
+  /** Deployment environment gate, e.g. `production` (or `{ name: production }`). */
+  environment?: string;
   env?: Record<string, string>;
   steps: Step[];
 }

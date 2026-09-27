@@ -70,12 +70,22 @@ function parseJobs(jobsRaw: Record<string, unknown>): Record<string, Job> {
       needs: (j.needs as string | string[]) || undefined,
       if: typeof j.if === 'string' ? j.if : undefined,
       permissions: parsePermissions(j.permissions),
+      environment: parseEnvironment(j.environment),
       env: parseEnv(j.env),
       steps,
     };
   }
 
   return jobs;
+}
+
+function parseEnvironment(raw: unknown): string | undefined {
+  if (typeof raw === 'string' && raw.trim()) return raw.trim();
+  if (typeof raw === 'object' && raw !== null) {
+    const name = (raw as Record<string, unknown>).name;
+    if (typeof name === 'string' && name.trim()) return name.trim();
+  }
+  return undefined;
 }
 
 function parseStep(raw: Record<string, unknown>): Step {

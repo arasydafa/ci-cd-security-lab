@@ -153,6 +153,63 @@ describe('rule registry', () => {
     assert.ok(!ruleIds(explicit).includes('missing-explicit-permissions'));
   });
 
+  it('flags cache restore in publish context, not in plain CI', () => {
+    const release = [
+      'name: Release',
+      'on:',
+      '  release:',
+      '    types: [published]',
+      'jobs:',
+      '  release:',
+      '    runs-on: ubuntu-latest',
+      '    steps:',
+      '      - uses: actions/checkout@v4',
+      '      - uses: actions/cache@v4',
+      '        with:',
+      '          path: ~/.npm',
+      "          key: npm-${{ hashFiles('package-lock.json') }}",
+      '      - run: npm ci',
+      '      - run: npm publish',
+    ].join('\n');
+    assert.ok(ruleIds(release).includes('cache-in-publish'));
+    // Cosmetic evasion: renaming the key still restores attacker-controlled bytes.
+    assert.ok(ruleIds(release.replace('npm-${{', 'deps-${{')).includes('cache-in-publish'));
+    const plainCi = release.replace('  release:\n    types: [published]', '  push:').replace('      - run: npm publish', '      - run: npm test');
+    assert.ok(!ruleIds(plainCi).includes('cache-in-publish'));
+    const noCache = release.split('\n').filter((l) => !l.includes('actions/cache') && !l.includes('path: ~/.npm') && !l.includes('key: npm-')).join('\n');
+    assert.ok(!ruleIds(noCache).includes('cache-in-publish'));
+  });
+
+  it('flags ungated prod deploys, ignores echo-only and staging', () => {
+    const bad = [
+      'name: Deploy',
+      'on: push',
+      'jobs:',
+      '  deploy-prod:',
+      '    runs-on: ubuntu-latest',
+      '    steps:',
+      '      - uses: actions/checkout@v4',
+      '      - run: ./deploy.sh --target prod',
+    ].join('\n');
+    assert.ok(ruleIds(bad).includes('prod-deploy-without-environment'));
+    const gated = bad.replace('    runs-on: ubuntu-latest', '    runs-on: ubuntu-latest\n    environment: production');
+    assert.ok(!ruleIds(gated).includes('prod-deploy-without-environment'));
+    // Regression: echo-only "Deploying to production" is not a deploy command.
+    const echoOnly = [
+      'name: Deploy',
+      'on: push',
+      'jobs:',
+      '  build:',
+      '    runs-on: ubuntu-latest',
+      '    steps:',
+      '      - name: Deploy',
+      '        run: echo "Deploying to production..."',
+    ].join('\n');
+    assert.ok(!ruleIds(echoOnly).includes('prod-deploy-without-environment'));
+    const staging = bad.replace('deploy-prod', 'deploy-staging').replace('--target prod', '--target staging');
+    assert.ok(!ruleIds(staging).includes('prod-deploy-without-environment'));
+  });
+
   it('lineOf maps snippets to 1-based lines', () => {
     assert.equal(lineOf('a\nb\nc', 'b'), 2);
     assert.equal(lineOf('a\nb', 'zzz'), undefined);

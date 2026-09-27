@@ -502,6 +502,105 @@ const selfHostedRunner = defineRule({
   },
 });
 
+/** First-word deploy commands, matched per shell segment. `echo`/`printf` lines never count. */
+const DEPLOY_CMD_RE =
+  /^(sudo\s+)?(npm\s+publish|pnpm\s+publish|twine\s+upload|gradle\s+publish|mvn\s+\S*\s*deploy|goreleaser(\s+release)?|semantic-release|gh\s+release\s+(create|upload)|nuget\s+push|helm\s+(push|upgrade)|docker\s+push|kubectl\s+(apply|rollout)|terraform\s+apply|pulumi\s+up|aws\s+(s3\s+sync|s3\s+cp|cloudformation\s+deploy|ecs\s+update-service)|az\s+webapp\b.*deploy|az\s+deployment\b|gcloud\s+\S*\s+deploy|serverless\s+deploy|ansible-playbook\b|(\.\/)?deploy\.sh\b|fab\s+\S*\s+deploy|cap\s+\S*\s+deploy)\b/i;
+
+function stepRunsDeployCommand(step: Step): boolean {
+  if (!step.run) return false;
+  return step.run
+    .split(/\n|&&|\|\||;|\|/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .some((seg) => !/^(echo|printf|#)/i.test(seg) && DEPLOY_CMD_RE.test(seg));
+}
+
+const CACHE_USES_RE = /actions\/cache(\/|@|$)/i;
+const PUBLISH_USES_RE = /(semantic-release|goreleaser|gh-release|pypi-publish|twine|nuget|chart-releaser)/i;
+/** Prod intent from identifiers only — never from run bodies (`echo "Deploying to production"` is not a deploy). */
+const PROD_NAME_RE = /\bprod(uction)?s?\b|\blive\b/i;
+
+function isPublishContext(workflow: WorkflowFile): boolean {
+  if (triggerNames(workflow).includes('release')) return true;
+  return eachStep(workflow).some(
+    ({ step }) =>
+      (step.run != null && stepRunsDeployCommand(step)) ||
+      (step.uses != null && PUBLISH_USES_RE.test(step.uses)),
+  );
+}
+
+const cacheInPublish = defineRule({
+  id: 'cache-in-publish',
+  severity: 'high',
+  category: 'supply-chain',
+  summary: 'Cache restored inside a release/publish workflow',
+  whyItMatters:
+    'Caches are shared across runs: a poisoned entry written by a low-privilege run is restored by the release job and shipped with production credentials. This exact chain published malware under a trusted identity in CVE-2026-45321.',
+  fixHint:
+    'Remove actions/cache from release and publish jobs; install dependencies fresh on every release build.',
+  reference: GHA_REF,
+  detect: ({ workflow, rawYaml }) => {
+    if (!isPublishContext(workflow)) return [];
+    const out: RuleFinding[] = [];
+    for (const { step } of eachStep(workflow)) {
+      if (step.uses && CACHE_USES_RE.test(step.uses)) {
+        out.push(
+          makeFinding(
+            cacheInPublish,
+            `Cache restored in a publish context (step "${step.name || 'unnamed'}") — poisoned entries ship with the release`,
+            step.uses,
+            { workflow, rawYaml },
+          ),
+        );
+      }
+    }
+    return out;
+  },
+});
+
+const prodDeployWithoutEnvironment = defineRule({
+  id: 'prod-deploy-without-environment',
+  severity: 'high',
+  category: 'deployments',
+  summary: 'Production deploy job has no environment gate',
+  whyItMatters:
+    'Without an environment gate there are no required reviewers, wait timers, or branch policies: any run that reaches the job deploys to production with prod secrets available.',
+  fixHint:
+    'Add `environment: production` to the deploy job and configure required reviewers plus branch policy in repository Settings > Environments.',
+  reference: GHA_REF,
+  detect: ({ workflow, rawYaml }) => {
+    const out: RuleFinding[] = [];
+    for (const [jobId, job] of Object.entries(workflow.jobs)) {
+      const j = job as Job;
+      const envName = typeof j.environment === 'string' ? j.environment : undefined;
+      if (envName && /prod(uction)?|live/i.test(envName)) continue;
+      const targetsProd =
+        PROD_NAME_RE.test(jobId) ||
+        PROD_NAME_RE.test(j.name || '') ||
+        (j.steps || []).some((s) => PROD_NAME_RE.test(s.name || ''));
+      if (!targetsProd) continue;
+      const deploys = (j.steps || []).some(
+        (s) =>
+          stepRunsDeployCommand(s) ||
+          (s.uses != null &&
+            !s.uses.startsWith('./') &&
+            /deploy/i.test(s.uses) &&
+            !/setup-|checkout|cache|artifact/i.test(s.uses)),
+      );
+      if (!deploys) continue;
+      out.push(
+        makeFinding(
+          prodDeployWithoutEnvironment,
+          `Job "${jobId}" deploys to production without an environment gate`,
+          jobId,
+          { workflow, rawYaml },
+        ),
+      );
+    }
+    return out;
+  },
+});
+
 /** Registry in stable evaluation order. */
 export const RULES: DetectionRule[] = [
   secretsEchoExpression,
@@ -516,6 +615,8 @@ export const RULES: DetectionRule[] = [
   prTargetCheckout,
   missingPermissions,
   selfHostedRunner,
+  cacheInPublish,
+  prodDeployWithoutEnvironment,
 ];
 
 export function runRules(ctx: RuleContext): RuleFinding[] {
