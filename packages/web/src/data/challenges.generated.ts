@@ -701,12 +701,12 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
         "label": "Cache isolation and poisoning guide"
       }
     ],
-    "scenario": "# Scenario: Poisoned Cache, Trusted Release\n\nYour release workflow publishes to npm on every GitHub release. To speed it up,\nsomeone added `actions/cache` to restore `~/.npm` before `npm ci`.\n\nThe problem: caches are **shared across runs**. An untrusted run (a fork PR, a\ncompromised dependency job) can write a poisoned entry under the same key. Your\nrelease job then restores attacker-controlled bytes and publishes them with\nproduction credentials attached.\n\nThis is not theoretical. In May 2026 attackers chained a `pull_request_target`\nmisconfiguration with cache poisoning across the fork-to-base trust boundary to\npublish malicious packages under a trusted identity (CVE-2026-45321).\n\n**Your mission:** Remove caching from the release job so every release installs\ndependencies fresh.\n\n## Key concepts\n- Cache entries are shared state, not trusted input\n- Release and publish jobs must not restore caches written by less-trusted runs\n- `npm ci` on a lockfile is reproducible without a cache\n",
-    "vulnerableWorkflow": "name: Release\n\non:\n  release:\n    types: [published]\n\npermissions:\n  contents: read\n  id-token: write\n\njobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Restore dependencies\n        uses: actions/cache@v4\n        with:\n          path: ~/.npm\n          key: npm-deps-${{ hashFiles('package-lock.json') }}\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Build\n        run: npm run build\n\n      - name: Publish to npm\n        run: npm publish --access public\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n",
-    "solutionWorkflow": "name: Release\n\non:\n  release:\n    types: [published]\n\npermissions:\n  contents: read\n  id-token: write\n\njobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Build\n        run: npm run build\n\n      - name: Publish to npm\n        run: npm publish --access public\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n",
+    "scenario": "# Scenario: Poisoned Cache, Trusted Release\r\n\r\nYour release workflow publishes to npm on every GitHub release. To speed it up,\r\nsomeone added `actions/cache` to restore `~/.npm` before `npm ci`.\r\n\r\nThe problem: caches are **shared across runs**. An untrusted run (a fork PR, a\r\ncompromised dependency job) can write a poisoned entry under the same key. Your\r\nrelease job then restores attacker-controlled bytes and publishes them with\r\nproduction credentials attached.\r\n\r\nThis is not theoretical. In May 2026 attackers chained a `pull_request_target`\r\nmisconfiguration with cache poisoning across the fork-to-base trust boundary to\r\npublish malicious packages under a trusted identity (CVE-2026-45321).\r\n\r\n**Your mission:** Remove caching from the release job so every release installs\r\ndependencies fresh.\r\n\r\n## Key concepts\r\n- Cache entries are shared state, not trusted input\r\n- Release and publish jobs must not restore caches written by less-trusted runs\r\n- `npm ci` on a lockfile is reproducible without a cache\r\n",
+    "vulnerableWorkflow": "name: Release\r\n\r\non:\r\n  release:\r\n    types: [published]\r\n\r\npermissions:\r\n  contents: read\r\n  id-token: write\r\n\r\njobs:\r\n  release:\r\n    runs-on: ubuntu-latest\r\n    steps:\r\n      - uses: actions/checkout@v4\r\n\r\n      - name: Restore dependencies\r\n        uses: actions/cache@v4\r\n        with:\r\n          path: ~/.npm\r\n          key: npm-deps-${{ hashFiles('package-lock.json') }}\r\n\r\n      - name: Install dependencies\r\n        run: npm ci\r\n\r\n      - name: Build\r\n        run: npm run build\r\n\r\n      - name: Publish to npm\r\n        run: npm publish --access public\r\n        env:\r\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\r\n",
+    "solutionWorkflow": "name: Release\r\n\r\non:\r\n  release:\r\n    types: [published]\r\n\r\npermissions:\r\n  contents: read\r\n  id-token: write\r\n\r\njobs:\r\n  release:\r\n    runs-on: ubuntu-latest\r\n    steps:\r\n      - uses: actions/checkout@v4\r\n\r\n      - name: Install dependencies\r\n        run: npm ci\r\n\r\n      - name: Build\r\n        run: npm run build\r\n\r\n      - name: Publish to npm\r\n        run: npm publish --access public\r\n        env:\r\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\r\n",
     "hints": [
-      "# Hint 1: Where the trust boundary breaks\n\nThe `actions/cache` step restores `~/.npm` using a key any run can compute:\n`npm-deps-${{ hashFiles('package-lock.json') }}`. Any workflow run in this\nrepository that saves under that key — including low-privilege ones — feeds\nbytes straight into your release build.\n",
-      "# Hint 2: The fix\n\nDelete the entire `actions/cache` step from the release job. Keep `npm ci` —\nwith a committed lockfile it is deterministic without a cache. As a rule:\nrelease and publish jobs restore no caches, ever.\n"
+      "# Hint 1: Where the trust boundary breaks\r\n\r\nThe `actions/cache` step restores `~/.npm` using a key any run can compute:\r\n`npm-deps-${{ hashFiles('package-lock.json') }}`. Any workflow run in this\r\nrepository that saves under that key — including low-privilege ones — feeds\r\nbytes straight into your release build.\r\n",
+      "# Hint 2: The fix\r\n\r\nDelete the entire `actions/cache` step from the release job. Keep `npm ci` —\r\nwith a committed lockfile it is deterministic without a cache. As a rule:\r\nrelease and publish jobs restore no caches, ever.\r\n"
     ],
     "hintsPenalty": 30
   },
@@ -737,12 +737,87 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
         "label": "Environment protection guide"
       }
     ],
-    "scenario": "# Scenario: Ungated Prod\n\nYour pipeline builds on every push to `main` and then deploys straight to\nproduction. There is no `environment:` on the deploy job, which means none of\nGitHub's deployment protections apply: no required reviewers, no wait timer,\nno branch policy, and production secrets are available to every run\nimmediately.\n\nAny commit that lands on `main` — including a compromised dependency update or\na mistaken merge — reaches production with zero human oversight.\n\n**Your mission:** Gate the production deploy job behind the `production`\nenvironment (required reviewers and branch policy are configured there in\nrepository Settings).\n\n## Key concepts\n- `environment: production` pauses the job until protection rules pass\n- Rules live in Settings, the workflow only names the environment\n- A missing environment name silently creates an unprotected one — use the exact name\n",
-    "vulnerableWorkflow": "name: Deploy\n\non:\n  push:\n    branches: [main]\n\npermissions:\n  contents: read\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Build\n        run: npm run build\n\n  deploy-prod:\n    runs-on: ubuntu-latest\n    needs: build\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Deploy to production\n        run: ./deploy.sh --target prod\n",
-    "solutionWorkflow": "name: Deploy\n\non:\n  push:\n    branches: [main]\n\npermissions:\n  contents: read\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Build\n        run: npm run build\n\n  deploy-prod:\n    runs-on: ubuntu-latest\n    needs: build\n    environment: production\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Deploy to production\n        run: ./deploy.sh --target prod\n",
+    "scenario": "# Scenario: Ungated Prod\r\n\r\nYour pipeline builds on every push to `main` and then deploys straight to\r\nproduction. There is no `environment:` on the deploy job, which means none of\r\nGitHub's deployment protections apply: no required reviewers, no wait timer,\r\nno branch policy, and production secrets are available to every run\r\nimmediately.\r\n\r\nAny commit that lands on `main` — including a compromised dependency update or\r\na mistaken merge — reaches production with zero human oversight.\r\n\r\n**Your mission:** Gate the production deploy job behind the `production`\r\nenvironment (required reviewers and branch policy are configured there in\r\nrepository Settings).\r\n\r\n## Key concepts\r\n- `environment: production` pauses the job until protection rules pass\r\n- Rules live in Settings, the workflow only names the environment\r\n- A missing environment name silently creates an unprotected one — use the exact name\r\n",
+    "vulnerableWorkflow": "name: Deploy\r\n\r\non:\r\n  push:\r\n    branches: [main]\r\n\r\npermissions:\r\n  contents: read\r\n\r\njobs:\r\n  build:\r\n    runs-on: ubuntu-latest\r\n    steps:\r\n      - uses: actions/checkout@v4\r\n\r\n      - name: Install dependencies\r\n        run: npm ci\r\n\r\n      - name: Build\r\n        run: npm run build\r\n\r\n  deploy-prod:\r\n    runs-on: ubuntu-latest\r\n    needs: build\r\n    steps:\r\n      - uses: actions/checkout@v4\r\n\r\n      - name: Deploy to production\r\n        run: ./deploy.sh --target prod\r\n",
+    "solutionWorkflow": "name: Deploy\r\n\r\non:\r\n  push:\r\n    branches: [main]\r\n\r\npermissions:\r\n  contents: read\r\n\r\njobs:\r\n  build:\r\n    runs-on: ubuntu-latest\r\n    steps:\r\n      - uses: actions/checkout@v4\r\n\r\n      - name: Install dependencies\r\n        run: npm ci\r\n\r\n      - name: Build\r\n        run: npm run build\r\n\r\n  deploy-prod:\r\n    runs-on: ubuntu-latest\r\n    needs: build\r\n    environment: production\r\n    steps:\r\n      - uses: actions/checkout@v4\r\n\r\n      - name: Deploy to production\r\n        run: ./deploy.sh --target prod\r\n",
     "hints": [
-      "# Hint 1: What the gate enforces\n\nAn environment in repository Settings can require reviewers (up to 6 people\nor teams), a wait timer, and a deployment-branches policy. The job only\nstarts — and only receives the environment's secrets — after those rules\npass. Without the `environment:` key, none of that exists.\n",
-      "# Hint 2: The fix\n\nAdd `environment: production` to the `deploy-prod` job. Make sure the name\nmatches the protected environment in Settings exactly — a typo creates a\nbrand-new unprotected environment instead of gating anything.\n"
+      "# Hint 1: What the gate enforces\r\n\r\nAn environment in repository Settings can require reviewers (up to 6 people\r\nor teams), a wait timer, and a deployment-branches policy. The job only\r\nstarts — and only receives the environment's secrets — after those rules\r\npass. Without the `environment:` key, none of that exists.\r\n",
+      "# Hint 2: The fix\r\n\r\nAdd `environment: production` to the `deploy-prod` job. Make sure the name\r\nmatches the protected environment in Settings exactly — a typo creates a\r\nbrand-new unprotected environment instead of gating anything.\r\n"
+    ],
+    "hintsPenalty": 30
+  },
+  {
+    "id": "docker-digest-pin",
+    "title": "Pin the Base",
+    "level": "intermediate",
+    "topic": "docker",
+    "points": 150,
+    "estimatedTime": "15m",
+    "description": "This workflow builds from a mutable base tag. When the tag moves — rebuild,\ncompromise, or retag — your pipeline builds different bytes with no diff in\nyour repository. Pin the base image to an immutable digest.\n",
+    "tags": [
+      "docker",
+      "supply-chain",
+      "pinning"
+    ],
+    "prerequisites": [
+      "docker-running-as-root",
+      "unsafe-deps"
+    ],
+    "objectives": [
+      "Explain why mutable base tags change builds without a repository diff",
+      "Pin FROM lines to tag at sha256 digest",
+      "Refresh digests with imagetools inspect and Dependabot docker updates"
+    ],
+    "references": [
+      {
+        "page": "docker",
+        "label": "Digest pinning guide"
+      }
+    ],
+    "scenario": "# Scenario: Pin the Base\n\nYour Dockerfile starts with `FROM node:20-slim`. That tag is mutable: the\nmaintainers rebuild it regularly, and anyone who compromises the registry\naccount can point it at different bytes. Your pipeline then builds — and\nships — code you never reviewed, with no diff in your repository to alert you.\n\nDigest pinning fixes the name to exact bytes:\n`FROM node:20-slim@sha256:2cf0...`. The tag stays for readability; the digest\nenforces immutability. Refresh it with\n`docker buildx imagetools inspect node:20-slim`, and let Dependabot's docker\necosystem propose digest updates on schedule.\n\n**Your mission:** Pin every `FROM` line in the inline Dockerfile to its digest.\n\n## Key concepts\n- Tags move, digests do not — pin `tag@sha256:digest`\n- Refresh via `docker buildx imagetools inspect`, automate via Dependabot\n- Signing (next challenge) proves who built it; pinning proves what you built from\n",
+    "vulnerableWorkflow": "name: Build Docker Image\n\non:\n  push:\n    branches: [main]\n\npermissions:\n  contents: read\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Build image\n        run: |\n          cat <<'EOF' > Dockerfile\n          FROM node:20-slim\n          WORKDIR /app\n          COPY package*.json ./\n          RUN npm ci --production\n          COPY src/ ./src/\n          CMD [\"node\", \"src/index.js\"]\n          EOF\n          docker build -t myapp:latest .\n\n      - name: Push image\n        run: |\n          echo \"Pushing to registry...\"\n          docker push myapp:latest\n",
+    "solutionWorkflow": "name: Build Docker Image\n\non:\n  push:\n    branches: [main]\n\npermissions:\n  contents: read\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Build image\n        run: |\n          cat <<'EOF' > Dockerfile\n          # Digest refreshed 2026-09-27 via docker buildx imagetools inspect.\n          # Digests rotate on rebuild — refresh on schedule with Dependabot docker updates.\n          FROM node:20-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0\n          WORKDIR /app\n          COPY package*.json ./\n          RUN npm ci --production\n          COPY src/ ./src/\n          CMD [\"node\", \"src/index.js\"]\n          EOF\n          docker build -t myapp:latest .\n\n      - name: Push image\n        run: |\n          echo \"Pushing to registry...\"\n          docker push myapp:latest\n",
+    "hints": [
+      "# Hint 1: What moves under you\n\n`node:20-slim` today and `node:20-slim` next month can be different images.\nLook at the `FROM` line inside the heredoc Dockerfile — it names a mutable\ntag with no digest, so nothing binds your build to specific bytes.\n",
+      "# Hint 2: The fix\n\nRewrite the line as `FROM node:20-slim@sha256:<digest>`, keeping the tag for\nreadability. Get the current digest with\n`docker buildx imagetools inspect node:20-slim` and record the refresh date in\na comment so the next rotation is not a surprise.\n"
+    ],
+    "hintsPenalty": 30
+  },
+  {
+    "id": "cosign-sign",
+    "title": "Sign the Image",
+    "level": "intermediate",
+    "topic": "docker",
+    "points": 150,
+    "estimatedTime": "15m",
+    "description": "This workflow builds a pinned base image and pushes it unsigned. Any tag\ncan be overwritten with different bytes, and clusters accept whatever the\ntag points at. Sign the image keylessly so consumers verify before running.\n",
+    "tags": [
+      "docker",
+      "cosign",
+      "signing",
+      "oidc"
+    ],
+    "prerequisites": [
+      "docker-secrets-in-env",
+      "oidc-misconfig"
+    ],
+    "objectives": [
+      "Explain why unsigned tags let registries serve untrusted bytes",
+      "Install cosign and sign the pushed image keylessly with OIDC",
+      "Verify signatures before deploying images to clusters"
+    ],
+    "references": [
+      {
+        "page": "docker",
+        "label": "Image signing with cosign guide"
+      }
+    ],
+    "scenario": "# Scenario: Sign the Image\n\nYour Dockerfile is pinned, your build is reproducible — and then you push the\nimage unsigned. The tag is just a mutable pointer: anyone with registry access\ncan overwrite it with different bytes, and every cluster pulling the tag runs\nwhatever it currently points at.\n\nKeyless signing with cosign fixes that without managing keys: the workflow's\nOIDC identity mints a short-lived certificate, the signature binds the exact\nimage digest to your repository, and consumers verify with\n`cosign verify` before deploying.\n\n**Your mission:** Sign the pushed image with keyless cosign.\n\n## Key concepts\n- Pinning proves what you built from; signing proves who built it\n- Keyless cosign needs `id-token: write` — no long-lived keys\n- Sign digests in production; verify with `cosign verify` before deploy\n",
+    "vulnerableWorkflow": "name: Build and Push\n\non:\n  push:\n    branches: [main]\n\npermissions:\n  contents: read\n  packages: write\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Build image\n        run: |\n          cat <<'EOF' > Dockerfile\n          FROM node:20-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0\n          WORKDIR /app\n          COPY package*.json ./\n          RUN npm ci --production\n          COPY src/ ./src/\n          CMD [\"node\", \"src/index.js\"]\n          EOF\n          docker build -t ghcr.io/example/myapp:${{ github.sha }} .\n\n      - name: Push image\n        run: docker push ghcr.io/example/myapp:${{ github.sha }}\n",
+    "solutionWorkflow": "name: Build and Push\n\non:\n  push:\n    branches: [main]\n\npermissions:\n  contents: read\n  packages: write\n  id-token: write\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Build image\n        run: |\n          cat <<'EOF' > Dockerfile\n          FROM node:20-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0\n          WORKDIR /app\n          COPY package*.json ./\n          RUN npm ci --production\n          COPY src/ ./src/\n          CMD [\"node\", \"src/index.js\"]\n          EOF\n          docker build -t ghcr.io/example/myapp:${{ github.sha }} .\n\n      - name: Push image\n        run: docker push ghcr.io/example/myapp:${{ github.sha }}\n\n      - name: Install cosign\n        uses: sigstore/cosign-installer@v4\n\n      - name: Sign image\n        run: cosign sign --yes ghcr.io/example/myapp:${{ github.sha }}\n",
+    "hints": [
+      "# Hint 1: What is missing\n\nThe workflow pushes `ghcr.io/example/myapp` but no step signs anything.\nSearch for `cosign` — there is no installer, no `cosign sign`, and no\n`id-token: write` permission for keyless signing.\n",
+      "# Hint 2: The fix\n\nAdd `sigstore/cosign-installer@v4`, grant `id-token: write`, then run\n`cosign sign --yes` on the pushed reference after the push step.\n"
     ],
     "hintsPenalty": 30
   },
@@ -951,12 +1026,50 @@ export const STATIC_CHALLENGES: StaticChallenge[] = [
         "label": "Pwn requests and checkout protection guide"
       }
     ],
-    "scenario": "# Scenario: Pwn Request\n\nYour workflow triggers on `pull_request_target` so it can label PRs and post\nresults. To test the actual PR code, it checks out the fork's head commit —\nthen runs `npm ci` and `npm test` on it.\n\nThat combination is a **pwn request**: `pull_request_target` runs in the base\nrepository context with a write token and access to secrets, but the code it\nexecutes comes from the untrusted fork. Any fork author can run arbitrary code\nwith your secrets by opening a PR.\n\nSince June 2026 `actions/checkout` v7 refuses fork checkouts under\n`pull_request_target` by default — but older pins and manual `git fetch`\npatterns stay exploitable, and the design flaw remains yours to fix.\n\n**Your mission:** Stop executing fork code in the privileged context. Run\nuntrusted builds under the `pull_request` event instead.\n\n## Key concepts\n- `pull_request_target` = base code, write token, secrets available\n- `pull_request` (from forks) = fork code, read-only token, no secrets\n- Checking out `head.sha` or `pull/N/merge` under the target event crosses the trust boundary\n",
-    "vulnerableWorkflow": "name: PR Check\n\non:\n  pull_request_target:\n    types: [opened, synchronize]\n\npermissions:\n  contents: read\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          repository: ${{ github.event.pull_request.head.repo.full_name }}\n          ref: ${{ github.event.pull_request.head.sha }}\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Run tests\n        run: npm test\n",
-    "solutionWorkflow": "name: PR Check\n\non:\n  pull_request:\n    branches: [main]\n\npermissions:\n  contents: read\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Run tests\n        run: npm test\n",
+    "scenario": "# Scenario: Pwn Request\r\n\r\nYour workflow triggers on `pull_request_target` so it can label PRs and post\r\nresults. To test the actual PR code, it checks out the fork's head commit —\r\nthen runs `npm ci` and `npm test` on it.\r\n\r\nThat combination is a **pwn request**: `pull_request_target` runs in the base\r\nrepository context with a write token and access to secrets, but the code it\r\nexecutes comes from the untrusted fork. Any fork author can run arbitrary code\r\nwith your secrets by opening a PR.\r\n\r\nSince June 2026 `actions/checkout` v7 refuses fork checkouts under\r\n`pull_request_target` by default — but older pins and manual `git fetch`\r\npatterns stay exploitable, and the design flaw remains yours to fix.\r\n\r\n**Your mission:** Stop executing fork code in the privileged context. Run\r\nuntrusted builds under the `pull_request` event instead.\r\n\r\n## Key concepts\r\n- `pull_request_target` = base code, write token, secrets available\r\n- `pull_request` (from forks) = fork code, read-only token, no secrets\r\n- Checking out `head.sha` or `pull/N/merge` under the target event crosses the trust boundary\r\n",
+    "vulnerableWorkflow": "name: PR Check\r\n\r\non:\r\n  pull_request_target:\r\n    types: [opened, synchronize]\r\n\r\npermissions:\r\n  contents: read\r\n\r\njobs:\r\n  test:\r\n    runs-on: ubuntu-latest\r\n    steps:\r\n      - uses: actions/checkout@v4\r\n        with:\r\n          repository: ${{ github.event.pull_request.head.repo.full_name }}\r\n          ref: ${{ github.event.pull_request.head.sha }}\r\n\r\n      - name: Install dependencies\r\n        run: npm ci\r\n\r\n      - name: Run tests\r\n        run: npm test\r\n",
+    "solutionWorkflow": "name: PR Check\r\n\r\non:\r\n  pull_request:\r\n    branches: [main]\r\n\r\npermissions:\r\n  contents: read\r\n\r\njobs:\r\n  test:\r\n    runs-on: ubuntu-latest\r\n    steps:\r\n      - uses: actions/checkout@v4\r\n\r\n      - name: Install dependencies\r\n        run: npm ci\r\n\r\n      - name: Run tests\r\n        run: npm test\r\n",
     "hints": [
-      "# Hint 1: Who runs what\n\n`pull_request_target` checks out your **base** branch by default and hands the\njob a write token plus secrets. The `with: repository/ref` override swaps in\nthe **fork's** code — so `npm ci` and `npm test` now execute attacker code\nwith your privileges.\n",
-      "# Hint 2: The fix\n\nRun tests under the `pull_request` event with a plain checkout — fork builds\nget a read-only token and no secrets. Reserve `pull_request_target` for\nmetadata-only work, or gate it on a maintainer-added `safe-to-test` label.\n"
+      "# Hint 1: Who runs what\r\n\r\n`pull_request_target` checks out your **base** branch by default and hands the\r\njob a write token plus secrets. The `with: repository/ref` override swaps in\r\nthe **fork's** code — so `npm ci` and `npm test` now execute attacker code\r\nwith your privileges.\r\n",
+      "# Hint 2: The fix\r\n\r\nRun tests under the `pull_request` event with a plain checkout — fork builds\r\nget a read-only token and no secrets. Reserve `pull_request_target` for\r\nmetadata-only work, or gate it on a maintainer-added `safe-to-test` label.\r\n"
+    ],
+    "hintsPenalty": 50
+  },
+  {
+    "id": "slsa-provenance",
+    "title": "Prove the Build",
+    "level": "advanced",
+    "topic": "github-actions",
+    "points": 200,
+    "estimatedTime": "20m",
+    "description": "This release workflow publishes artifacts with no provenance and no SBOM.\nConsumers cannot tell whether the artifact came from your pipeline or an\nimpostor. Attest the build and document its dependencies.\n",
+    "tags": [
+      "slsa",
+      "provenance",
+      "sbom",
+      "release"
+    ],
+    "prerequisites": [
+      "artifact-tampering",
+      "supply-chain-attack"
+    ],
+    "objectives": [
+      "Explain what signed provenance guarantees to artifact consumers",
+      "Add an attestation step with subject path and OIDC permissions",
+      "Generate an SBOM alongside provenance for dependency visibility"
+    ],
+    "references": [
+      {
+        "page": "github-actions",
+        "label": "Provenance and SBOM guide"
+      }
+    ],
+    "scenario": "# Scenario: Prove the Build\n\nYour release pipeline builds `dist/`, uploads it, and publishes to npm. It\nworks — but nothing proves the published bytes came from this pipeline. An\nattacker who compromises a maintainer account, a registry, or any step between\nbuild and publish can substitute artifacts, and consumers have no way to tell.\n\nSigned build provenance fixes that: an attestation binds each artifact to the\nexact repository, commit, and workflow that produced it, signed keylessly via\nOIDC. An SBOM alongside it documents every dependency inside, so vulnerable\nlibraries are visible instead of hidden.\n\n**Your mission:** Attest the built artifact and generate an SBOM in the\nrelease workflow.\n\n## Key concepts\n- Attestations bind artifacts to source, commit, and build (SLSA provenance)\n- `actions/attest` needs `id-token: write` plus `attestations: write`\n- `anchore/sbom-action` documents dependencies as SPDX\n",
+    "vulnerableWorkflow": "name: Release\n\non:\n  release:\n    types: [published]\n\npermissions:\n  contents: read\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Build\n        run: npm run build\n\n      - name: Upload artifact\n        uses: actions/upload-artifact@v4\n        with:\n          name: dist\n          path: dist/\n\n  publish:\n    runs-on: ubuntu-latest\n    needs: build\n    steps:\n      - name: Download artifact\n        uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist/\n\n      - name: Publish to npm\n        run: npm publish --access public\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n",
+    "solutionWorkflow": "name: Release\n\non:\n  release:\n    types: [published]\n\npermissions:\n  contents: read\n  id-token: write\n  attestations: write\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Build\n        run: npm run build\n\n      - name: Upload artifact\n        uses: actions/upload-artifact@v4\n        with:\n          name: dist\n          path: dist/\n\n  publish:\n    runs-on: ubuntu-latest\n    needs: build\n    steps:\n      - name: Download artifact\n        uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist/\n\n      - name: Generate SBOM\n        uses: anchore/sbom-action@v0\n\n      - name: Attest build provenance\n        uses: actions/attest@v4\n        with:\n          subject-path: 'dist/**'\n\n      - name: Publish to npm\n        run: npm publish --access public\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n",
+    "hints": [
+      "# Hint 1: What is missing\n\nThe workflow builds and publishes, but no step vouches for the artifact.\nLook for `actions/attest` (or the older `attest-build-provenance`) and any\nSBOM generation — neither exists, so consumers trust the bytes blindly.\n",
+      "# Hint 2: The fix\n\nAdd `actions/attest@v4` with `subject-path: 'dist/**'` after the download,\nplus `id-token: write` and `attestations: write` permissions. Add\n`anchore/sbom-action@v0` so dependencies are documented too.\n"
     ],
     "hintsPenalty": 50
   }

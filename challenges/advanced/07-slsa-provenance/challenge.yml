@@ -1,0 +1,29 @@
+id: slsa-provenance
+title: "Prove the Build"
+level: advanced
+topic: github-actions
+category: security
+estimated_time: 20m
+points: 200
+description: |
+  This release workflow publishes artifacts with no provenance and no SBOM.
+  Consumers cannot tell whether the artifact came from your pipeline or an
+  impostor. Attest the build and document its dependencies.
+tags: [slsa, provenance, sbom, release]
+prerequisites: [artifact-tampering, supply-chain-attack]
+objectives:
+  - Explain what signed provenance guarantees to artifact consumers
+  - Add an attestation step with subject path and OIDC permissions
+  - Generate an SBOM alongside provenance for dependency visibility
+references:
+  - page: github-actions
+    label: Provenance and SBOM guide
+validation:
+  type: workflow-check
+  expected:
+    # Semantic check: publish jobs must carry a provenance attestation step.
+    - predicate: no-rule-findings
+      rules: [missing-provenance]
+scoring:
+  hints_used_penalty: 50
+  time_bonus: 100
