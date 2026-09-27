@@ -110,6 +110,7 @@ export function Dashboard() {
             completed: prev.completed || entry.completed,
             completedAt: prev.completedAt || entry.completedAt,
             solutionViewed: prev.solutionViewed || entry.solutionViewed,
+            startedAt: prev.startedAt || entry.startedAt,
           };
         }
         setProgress(merged);

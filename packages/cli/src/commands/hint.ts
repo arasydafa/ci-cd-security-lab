@@ -12,6 +12,7 @@ interface ProgressData {
     completed: boolean;
     completedAt?: string;
     solutionViewed?: boolean;
+    startedAt?: string;
   };
 }
 
@@ -74,6 +75,7 @@ export function hintCommand(manager: ChallengeManager, challengeId: string, hint
     completed: prev?.completed || false,
     completedAt: prev?.completedAt,
     solutionViewed: prev?.solutionViewed,
+    startedAt: prev?.startedAt || new Date().toISOString(),
   };
   saveProgress(progress);
 
