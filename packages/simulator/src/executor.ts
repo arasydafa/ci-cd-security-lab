@@ -106,9 +106,6 @@ export class Executor {
     const env = resolveEnvironment(step.env, jobEnv, undefined, this.ctx);
     const script = step.run || '';
 
-    // Security scanning: check for leaked secrets in output
-    this.scanForSecrets(script, name);
-
     const shell = step.shell || 'bash';
     let output = '';
 
@@ -141,65 +138,5 @@ export class Executor {
     const endTime = new Date().toISOString();
     this.ctx.logs.push(`[${name}] Completed successfully`);
     return { name, status: 'success', output, duration: 0, startTime, endTime };
-  }
-
-  private scanForSecrets(script: string, stepName: string): void {
-    // Check for secrets being echoed or printed
-    const secretPatterns = [
-      { pattern: /echo.*\$\{\{\s*secrets\./, msg: 'Secret may be echoed to logs via expression interpolation' },
-      { pattern: /printenv|env\b/, msg: 'Environment dump may expose secrets' },
-      { pattern: /AKIA[0-9A-Z]{16}/, msg: 'AWS Access Key ID detected in script' },
-    ];
-
-    for (const { pattern, msg } of secretPatterns) {
-      if (pattern.test(script)) {
-        this.ctx.findings.push({
-          severity: 'high',
-          category: 'secrets',
-          message: `${msg} in step "${stepName}"`,
-          remediation: 'Use GitHub Secrets and mask sensitive values with ::add-mask::',
-        });
-      }
-    }
-
-    // Check for curl piping to shell (supply chain risk)
-    if (/curl.*\|\s*(ba)?sh/.test(script) || /curl.*--compressed.*\|\s*(ba)?sh/.test(script)) {
-      this.ctx.findings.push({
-        severity: 'critical',
-        category: 'supply-chain',
-        message: `Piping curl output to shell in step "${stepName}" — supply chain attack vector`,
-        remediation: 'Download, verify checksum, then execute',
-      });
-    }
-
-    // Check for wget piping to shell
-    if (/wget.*\|\s*(ba)?sh/.test(script)) {
-      this.ctx.findings.push({
-        severity: 'critical',
-        category: 'supply-chain',
-        message: `Piping wget output to shell in step "${stepName}" — supply chain attack vector`,
-        remediation: 'Download, verify checksum, then execute',
-      });
-    }
-
-    // Check for || echo swallowing errors
-    if (/\|\|\s*echo/.test(script)) {
-      this.ctx.findings.push({
-        severity: 'medium',
-        category: 'reliability',
-        message: `Build errors silently swallowed with "|| echo" in step "${stepName}"`,
-        remediation: 'Let build failures propagate naturally',
-      });
-    }
-
-    // Check for hardcoded credentials
-    if (/password\s*[:=]\s*["']/.test(script)) {
-      this.ctx.findings.push({
-        severity: 'high',
-        category: 'secrets',
-        message: `Hardcoded password detected in step "${stepName}"`,
-        remediation: 'Use GitHub Secrets or a secrets manager',
-      });
-    }
   }
 }

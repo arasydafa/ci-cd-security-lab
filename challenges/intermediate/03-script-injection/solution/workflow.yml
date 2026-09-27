@@ -19,10 +19,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Log PR title
-        run: echo "Processing PR: $PR_TITLE"
+        run: |
+          echo "Processing PR: $PR_TITLE"
 
       - name: Check PR description
-        run: echo "Description: $PR_BODY"
+        run: |
+          echo "Description: $PR_BODY"
 
       - name: Validate
-        run: echo "All checks passed for PR #$PR_NUMBER"
+        run: |
+          echo "All checks passed for PR #$PR_NUMBER"
