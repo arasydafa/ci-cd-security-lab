@@ -506,6 +506,16 @@ const selfHostedRunner = defineRule({
 const DEPLOY_CMD_RE =
   /^(sudo\s+)?(npm\s+publish|pnpm\s+publish|twine\s+upload|gradle\s+publish|mvn\s+\S*\s*deploy|goreleaser(\s+release)?|semantic-release|gh\s+release\s+(create|upload)|nuget\s+push|helm\s+(push|upgrade)|docker\s+push|kubectl\s+(apply|rollout)|terraform\s+apply|pulumi\s+up|aws\s+(s3\s+sync|s3\s+cp|cloudformation\s+deploy|ecs\s+update-service)|az\s+webapp\b.*deploy|az\s+deployment\b|gcloud\s+\S*\s+deploy|serverless\s+deploy|ansible-playbook\b|(\.\/)?deploy\.sh\b|fab\s+\S*\s+deploy|cap\s+\S*\s+deploy)\b/i;
 
+/** Shell segments that actually execute something (drops echo/printf/comments). */
+function codeSegments(run: string | undefined): string[] {
+  if (!run) return [];
+  return run
+    .split(/\n|&&|\|\||;|\|/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter((seg) => !/^(echo|printf|#)/i.test(seg));
+}
+
 function stepRunsDeployCommand(step: Step): boolean {
   if (!step.run) return false;
   return step.run
@@ -601,6 +611,124 @@ const prodDeployWithoutEnvironment = defineRule({
   },
 });
 
+const DOCKER_REF = '/reference/docker';
+
+const unpinnedBaseImage = defineRule({
+  id: 'unpinned-base-image',
+  severity: 'medium',
+  category: 'supply-chain',
+  summary: 'Dockerfile FROM line not pinned to a digest',
+  whyItMatters:
+    'Mutable tags resolve to different bytes over time: a compromised or rebuilt tag changes what your pipeline builds with no diff in your repository.',
+  fixHint:
+    'Pin every FROM to tag@sha256:digest and refresh with docker buildx imagetools inspect (Dependabot docker updates digests automatically).',
+  reference: DOCKER_REF,
+  detect: ({ workflow, rawYaml }) => {
+    const out: RuleFinding[] = [];
+    for (const { step } of eachStep(workflow)) {
+      if (!step.run) continue;
+      for (const line of step.run.split('\n')) {
+        const text = line.trim();
+        if (!/^FROM\s+\S+/i.test(text)) continue;
+        if (/@sha256:/i.test(text)) continue;
+        out.push(
+          makeFinding(
+            unpinnedBaseImage,
+            `Unpinned base image "${text}" — pin to tag@sha256:digest`,
+            text,
+            { workflow, rawYaml },
+          ),
+        );
+      }
+    }
+    return out;
+  },
+});
+
+const ATTEST_USES_RE = /actions\/attest(-build-provenance)?@|slsa-github-generator/i;
+
+const missingProvenance = defineRule({
+  id: 'missing-provenance',
+  severity: 'medium',
+  category: 'supply-chain',
+  summary: 'Release publishes artifacts with no provenance attestation',
+  whyItMatters:
+    'Without signed provenance, consumers cannot tell whether an artifact came from your pipeline or an impostor; attestations bind each artifact to its exact build.',
+  fixHint:
+    'Add actions/attest with subject-path plus id-token and attestations write permissions; generate an SBOM with anchore/sbom-action.',
+  reference: GHA_REF,
+  detect: ({ workflow, rawYaml }) => {
+    if (!isPublishContext(workflow)) return [];
+    const hasAttest = eachStep(workflow).some(
+      ({ step }) => step.uses != null && ATTEST_USES_RE.test(step.uses),
+    );
+    if (hasAttest) return [];
+    let snippet = 'release';
+    for (const { step } of eachStep(workflow)) {
+      if (step.run && stepRunsDeployCommand(step)) {
+        snippet = codeSegments(step.run)[0] || snippet;
+        break;
+      }
+    }
+    return [
+      makeFinding(
+        missingProvenance,
+        'Publish workflow has no provenance attestation (actions/attest or SLSA generator)',
+        snippet,
+        { workflow, rawYaml },
+      ),
+    ];
+  },
+});
+
+const COSIGN_USES_RE = /cosign/i;
+
+function stepSignsImage(step: Step): boolean {
+  if (step.uses && COSIGN_USES_RE.test(step.uses)) return true;
+  return codeSegments(step.run).some((seg) => /cosign\s+sign\b/i.test(seg));
+}
+
+function stepPushesImage(step: Step): boolean {
+  if (step.uses && /build-push-action/i.test(step.uses)) return true;
+  if (step.with && typeof step.with.push === 'string' && /^\s*true\s*$/i.test(step.with.push)) {
+    return true;
+  }
+  return codeSegments(step.run).some((seg) => /^docker\s+push\b/i.test(seg));
+}
+
+const unsignedImagePush = defineRule({
+  id: 'unsigned-image-push',
+  severity: 'medium',
+  category: 'supply-chain',
+  summary: 'Container image pushed without a signature',
+  whyItMatters:
+    'Unsigned images let registries and clusters accept anything under the tag; keyless cosign signatures bind the digest to your OIDC identity so consumers verify before running.',
+  fixHint:
+    'Sign the pushed digest with cosign (keyless via id-token: write) installed from sigstore/cosign-installer.',
+  reference: DOCKER_REF,
+  detect: ({ workflow, rawYaml }) => {
+    const pushes = eachStep(workflow).some(({ step }) => stepPushesImage(step));
+    if (!pushes) return [];
+    const signed = eachStep(workflow).some(({ step }) => stepSignsImage(step));
+    if (signed) return [];
+    let snippet = 'docker push';
+    for (const { step } of eachStep(workflow)) {
+      if (stepPushesImage(step)) {
+        snippet = (step.uses || codeSegments(step.run)[0] || snippet).trim();
+        break;
+      }
+    }
+    return [
+      makeFinding(
+        unsignedImagePush,
+        'Image pushed without a cosign signature — consumers cannot verify what they run',
+        snippet,
+        { workflow, rawYaml },
+      ),
+    ];
+  },
+});
+
 /** Registry in stable evaluation order. */
 export const RULES: DetectionRule[] = [
   secretsEchoExpression,
@@ -617,6 +745,9 @@ export const RULES: DetectionRule[] = [
   selfHostedRunner,
   cacheInPublish,
   prodDeployWithoutEnvironment,
+  unpinnedBaseImage,
+  missingProvenance,
+  unsignedImagePush,
 ];
 
 export function runRules(ctx: RuleContext): RuleFinding[] {
