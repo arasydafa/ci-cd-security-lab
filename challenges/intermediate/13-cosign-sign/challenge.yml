@@ -1,0 +1,29 @@
+id: cosign-sign
+title: "Sign the Image"
+level: intermediate
+topic: docker
+category: security
+estimated_time: 15m
+points: 150
+description: |
+  This workflow builds a pinned base image and pushes it unsigned. Any tag
+  can be overwritten with different bytes, and clusters accept whatever the
+  tag points at. Sign the image keylessly so consumers verify before running.
+tags: [docker, cosign, signing, oidc]
+prerequisites: [docker-secrets-in-env, oidc-misconfig]
+objectives:
+  - Explain why unsigned tags let registries serve untrusted bytes
+  - Install cosign and sign the pushed image keylessly with OIDC
+  - Verify signatures before deploying images to clusters
+references:
+  - page: docker
+    label: Image signing with cosign guide
+validation:
+  type: workflow-check
+  expected:
+    # Semantic check: every image push must be accompanied by a cosign signature.
+    - predicate: no-rule-findings
+      rules: [unsigned-image-push]
+scoring:
+  hints_used_penalty: 30
+  time_bonus: 75

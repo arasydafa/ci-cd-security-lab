@@ -210,6 +210,61 @@ describe('rule registry', () => {
     assert.ok(!ruleIds(staging).includes('prod-deploy-without-environment'));
   });
 
+  it('flags unpinned FROM lines, accepts tag@digest', () => {
+    const bad = BASE(
+      '    steps:\n      - run: |\n          cat <<EOF > Dockerfile\n          FROM node:20-slim\n          EOF',
+    );
+    assert.ok(ruleIds(bad).includes('unpinned-base-image'));
+    const good = BASE(
+      '    steps:\n      - run: |\n          cat <<EOF > Dockerfile\n          FROM node:20-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0\n          EOF',
+    );
+    assert.ok(!ruleIds(good).includes('unpinned-base-image'));
+    const commented = BASE('    steps:\n      - run: echo "FROM node:20-slim"');
+    assert.ok(!ruleIds(commented).includes('unpinned-base-image'));
+  });
+
+  it('flags publishes without provenance, accepts actions/attest', () => {
+    const bad = [
+      'name: Release',
+      'on:',
+      '  release:',
+      '    types: [published]',
+      'jobs:',
+      '  release:',
+      '    runs-on: ubuntu-latest',
+      '    steps:',
+      '      - uses: actions/checkout@v4',
+      '      - run: npm ci',
+      '      - run: npm publish',
+    ].join('\n');
+    assert.ok(ruleIds(bad).includes('missing-provenance'));
+    const good = bad.replace(
+      '      - run: npm publish',
+      '      - uses: actions/attest@v4\n        with:\n          subject-path: dist/**\n      - run: npm publish',
+    );
+    assert.ok(!ruleIds(good).includes('missing-provenance'));
+    const plainCi = bad.replace('  release:\n    types: [published]', '  push:').replace('      - run: npm publish', '      - run: npm test');
+    assert.ok(!ruleIds(plainCi).includes('missing-provenance'));
+  });
+
+  it('flags unsigned pushes, ignores echo-only cosign mentions', () => {
+    const bad = BASE('    steps:\n      - run: docker build -t myapp:latest .\n      - run: docker push myapp:latest');
+    assert.ok(ruleIds(bad).includes('unsigned-image-push'));
+    const signed = bad.replace(
+      '      - run: docker push myapp:latest',
+      '      - uses: sigstore/cosign-installer@v4\n      - run: cosign sign --yes myapp:latest',
+    );
+    assert.ok(!ruleIds(signed).includes('unsigned-image-push'));
+    // Mentioning cosign in an echo does not sign anything.
+    const echoEvasion = bad.replace(
+      '      - run: docker push myapp:latest',
+      '      - run: |\n          echo "cosign sign --yes myapp:latest"\n          docker push myapp:latest',
+    );
+    assert.ok(ruleIds(echoEvasion).includes('unsigned-image-push'));
+    const noPush = BASE('    steps:\n      - run: docker build -t myapp:latest .');
+    assert.ok(!ruleIds(noPush).includes('unsigned-image-push'));
+  });
+
   it('lineOf maps snippets to 1-based lines', () => {
     assert.equal(lineOf('a\nb\nc', 'b'), 2);
     assert.equal(lineOf('a\nb', 'zzz'), undefined);

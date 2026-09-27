@@ -1,0 +1,37 @@
+name: Build and Push
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          cat <<'EOF' > Dockerfile
+          FROM node:20-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0
+          WORKDIR /app
+          COPY package*.json ./
+          RUN npm ci --production
+          COPY src/ ./src/
+          CMD ["node", "src/index.js"]
+          EOF
+          docker build -t ghcr.io/example/myapp:${{ github.sha }} .
+
+      - name: Push image
+        run: docker push ghcr.io/example/myapp:${{ github.sha }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v4
+
+      - name: Sign image
+        run: cosign sign --yes ghcr.io/example/myapp:${{ github.sha }}

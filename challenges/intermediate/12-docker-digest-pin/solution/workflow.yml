@@ -1,0 +1,33 @@
+name: Build Docker Image
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          cat <<'EOF' > Dockerfile
+          # Digest refreshed 2026-09-27 via docker buildx imagetools inspect.
+          # Digests rotate on rebuild — refresh on schedule with Dependabot docker updates.
+          FROM node:20-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0
+          WORKDIR /app
+          COPY package*.json ./
+          RUN npm ci --production
+          COPY src/ ./src/
+          CMD ["node", "src/index.js"]
+          EOF
+          docker build -t myapp:latest .
+
+      - name: Push image
+        run: |
+          echo "Pushing to registry..."
+          docker push myapp:latest

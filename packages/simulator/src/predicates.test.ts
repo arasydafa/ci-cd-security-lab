@@ -192,6 +192,45 @@ describe('predicates', () => {
     }
   });
 
+  it('fase 4b (supply chain): solutions pass, vulnerable fail', () => {
+    const cases: { level: string; id: string; predicate: string; rules?: string[] }[] = [
+      {
+        level: 'intermediate',
+        id: '12-docker-digest-pin',
+        predicate: 'no-rule-findings',
+        rules: ['unpinned-base-image'],
+      },
+      {
+        level: 'advanced',
+        id: '07-slsa-provenance',
+        predicate: 'no-rule-findings',
+        rules: ['missing-provenance'],
+      },
+      {
+        level: 'intermediate',
+        id: '13-cosign-sign',
+        predicate: 'no-rule-findings',
+        rules: ['unsigned-image-push'],
+      },
+    ];
+    for (const c of cases) {
+      const solution = loadChallengeFile(c.level, c.id, 'solution');
+      const vulnerable = loadChallengeFile(c.level, c.id, 'vulnerable');
+      assert.equal(checkPredicate(solution, c.predicate, c.rules).passed, true, `${c.id} solution`);
+      assert.equal(checkPredicate(vulnerable, c.predicate, c.rules).passed, false, `${c.id} vulnerable`);
+    }
+  });
+
+  it('fase 4b: cosmetic evasions still fail', () => {
+    // A comment claiming a digest does not pin the FROM line.
+    const digestSolution = loadChallengeFile('intermediate', '12-docker-digest-pin', 'solution');
+    const digestEvasion = digestSolution.replace(
+      'FROM node:20-slim@sha256:',
+      '# pinned to digest\n          FROM node:20-slim',
+    );
+    assert.equal(checkPredicate(digestEvasion, 'no-rule-findings', ['unpinned-base-image']).passed, false);
+  });
+
   it('fase 4a: cosmetic evasions still fail', () => {
     // Renaming the cache key does not remove the publish-context restore.
     const cacheSolution = loadChallengeFile('intermediate', '10-cache-poisoning', 'solution');

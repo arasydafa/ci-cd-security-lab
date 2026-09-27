@@ -1,0 +1,29 @@
+id: docker-digest-pin
+title: "Pin the Base"
+level: intermediate
+topic: docker
+category: security
+estimated_time: 15m
+points: 150
+description: |
+  This workflow builds from a mutable base tag. When the tag moves — rebuild,
+  compromise, or retag — your pipeline builds different bytes with no diff in
+  your repository. Pin the base image to an immutable digest.
+tags: [docker, supply-chain, pinning]
+prerequisites: [docker-running-as-root, unsafe-deps]
+objectives:
+  - Explain why mutable base tags change builds without a repository diff
+  - Pin FROM lines to tag at sha256 digest
+  - Refresh digests with imagetools inspect and Dependabot docker updates
+references:
+  - page: docker
+    label: Digest pinning guide
+validation:
+  type: workflow-check
+  expected:
+    # Semantic check: every Dockerfile FROM line pins tag at digest.
+    - predicate: no-rule-findings
+      rules: [unpinned-base-image]
+scoring:
+  hints_used_penalty: 30
+  time_bonus: 75
