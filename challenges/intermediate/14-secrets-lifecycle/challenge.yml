@@ -1,0 +1,29 @@
+id: secrets-lifecycle
+title: "Secrets Lifecycle"
+level: intermediate
+topic: github-actions
+category: security
+estimated_time: 15m
+points: 150
+description: |
+  This workflow uses a static deploy token that never expires and dumps the
+  whole secrets context to logs for debugging. Shrink every secret lifetime
+  and confine each secret to the single step that needs it.
+tags: [secrets, lifecycle, rotation]
+prerequisites: [secrets-leak, env-dumping]
+objectives:
+  - Distinguish long-lived static secrets from short-lived scoped credentials
+  - Confine each secret to the single step that needs it
+  - Remove mass-exposure patterns like whole-context dumps from logs
+references:
+  - page: github-actions
+    label: Secrets lifecycle guide
+validation:
+  type: workflow-check
+  expected:
+    # Semantic checks: no static tokens, no whole-context serialization.
+    - predicate: no-rule-findings
+      rules: [hardcoded-credential, secrets-json-dump]
+scoring:
+  hints_used_penalty: 30
+  time_bonus: 75

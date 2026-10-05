@@ -14,11 +14,25 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Configure AWS credentials
-        env:
-          AWS_ACCESS_KEY_ID: AKIAIOSFODNN7EXAMPLE
-          AWS_SECRET_ACCESS_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/github-actions-deploy
+          aws-region: us-east-1
+
+      - name: Open trust policy
         run: |
-          echo "Configuring AWS..."
+          cat > trust-policy.json <<'EOF'
+          {
+            "Version": "2012-10-17",
+            "Statement": [{
+              "Effect": "Allow",
+              "Principal": {"Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"},
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {"StringLike": {"token.actions.githubusercontent.com:sub": "repo:my-org/*"}}
+            }]
+          }
+          EOF
+          aws iam update-assume-role-policy --role-name github-actions-deploy --policy-document file://trust-policy.json
 
       - name: Deploy
         run: |

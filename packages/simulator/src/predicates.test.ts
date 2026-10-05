@@ -146,7 +146,7 @@ describe('predicates', () => {
         level: 'intermediate',
         id: '04-oidc-misconfig',
         predicate: 'no-rule-findings',
-        rules: ['aws-access-key', 'hardcoded-credential'],
+        rules: ['oidc-missing-id-token', 'broad-oidc-trust', 'aws-access-key', 'hardcoded-credential'],
       },
       {
         level: 'intermediate',
@@ -219,6 +219,52 @@ describe('predicates', () => {
       assert.equal(checkPredicate(solution, c.predicate, c.rules).passed, true, `${c.id} solution`);
       assert.equal(checkPredicate(vulnerable, c.predicate, c.rules).passed, false, `${c.id} vulnerable`);
     }
+  });
+
+  it('fase 4c (oidc lifecycle): solutions pass, vulnerable fail', () => {
+    const cases: { level: string; id: string; predicate: string; rules?: string[] }[] = [
+      {
+        level: 'intermediate',
+        id: '04-oidc-misconfig',
+        predicate: 'no-rule-findings',
+        rules: ['oidc-missing-id-token', 'broad-oidc-trust', 'aws-access-key', 'hardcoded-credential'],
+      },
+      {
+        level: 'intermediate',
+        id: '14-secrets-lifecycle',
+        predicate: 'no-rule-findings',
+        rules: ['hardcoded-credential', 'secrets-json-dump'],
+      },
+    ];
+    for (const c of cases) {
+      const solution = loadChallengeFile(c.level, c.id, 'solution');
+      const vulnerable = loadChallengeFile(c.level, c.id, 'vulnerable');
+      assert.equal(checkPredicate(solution, c.predicate, c.rules).passed, true, `${c.id} solution`);
+      assert.equal(checkPredicate(vulnerable, c.predicate, c.rules).passed, false, `${c.id} vulnerable`);
+    }
+  });
+
+  it('fase 4c: cosmetic evasions still fail', () => {
+    // Scoping one line while leaving a wildcard elsewhere still fails.
+    const oidcSolution = loadChallengeFile('intermediate', '04-oidc-misconfig', 'solution');
+    const oidcEvasion = oidcSolution.replace(
+      'ref:refs/heads/main',
+      'ref:refs/heads/main", "extra": "repo:my-org/*',
+    );
+    assert.equal(
+      checkPredicate(oidcEvasion, 'no-rule-findings', ['broad-oidc-trust']).passed,
+      false,
+    );
+    // Masking the dump output does not remove the serialization.
+    const lifecycleSolution = loadChallengeFile('intermediate', '14-secrets-lifecycle', 'solution');
+    const lifecycleEvasion = lifecycleSolution.replace(
+      '      - name: Deploy',
+      '      - name: Audit secrets\n        run: echo "${{ toJSON(secrets) }}" | sha256sum\n\n      - name: Deploy',
+    );
+    assert.equal(
+      checkPredicate(lifecycleEvasion, 'no-rule-findings', ['secrets-json-dump']).passed,
+      false,
+    );
   });
 
   it('fase 4b: cosmetic evasions still fail', () => {

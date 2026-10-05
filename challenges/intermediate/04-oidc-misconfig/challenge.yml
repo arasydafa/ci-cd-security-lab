@@ -6,14 +6,15 @@ category: security
 estimated_time: 15m
 points: 150
 description: |
-  This workflow uses OIDC for AWS authentication but the trust policy
-  is too broad. Any repository in your org can assume the role.
-  Lock down the OIDC trust to specific repositories and branches.
+  This workflow assumes an AWS role with OIDC but mints no OIDC token, and the
+  role trust policy lets any repository in the org assume it. Wire up OIDC
+  properly and scope the trust to one repository and branch.
 tags: [oidc, aws, iam, trust-policy]
 prerequisites: [secrets-leak, permissions-overkill]
 objectives:
-  - Replace static keys with OIDC role assumption
-  - Scope the trust policy to specific repositories and branches
+  - Grant id-token write so GitHub mints an OIDC token for the role assumption
+  - Scope the trust policy sub condition to one repository and branch
+  - Verify static keys are gone and untrusted repos cannot assume the role
 references:
   - page: github-actions
     label: OIDC authentication guide
@@ -21,9 +22,9 @@ validation:
   type: workflow-check
   expected:
     - should_contain: ["role-to-assume"]
-    # Semantic check: no static keys anywhere (scripts, env, or with: blocks).
+    # Semantic checks: real OIDC needs the token permission, scoped trust, and no static keys.
     - predicate: no-rule-findings
-      rules: [aws-access-key, hardcoded-credential]
+      rules: [oidc-missing-id-token, broad-oidc-trust, aws-access-key, hardcoded-credential]
 scoring:
   hints_used_penalty: 30
   time_bonus: 75
