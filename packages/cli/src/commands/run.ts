@@ -67,6 +67,9 @@ export async function runCommand(
     : new Date().toISOString();
   const elapsedMs = Math.max(0, Date.now() - new Date(startedAt).getTime());
 
+  // Explicit user invocation: allow real step execution (see executor gate).
+  process.env.CICD_LAB_EXEC = '1';
+
   console.log(chalk.bold('\n  Running simulation...\n'));
 
   try {

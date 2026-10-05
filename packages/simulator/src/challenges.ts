@@ -8,6 +8,7 @@ import { simulate, type SimulationOptions } from './simulator.js';
 import { type SimulationContext, createContext } from './environment.js';
 import { predicateCheck } from './predicates.js';
 import { clampThreshold, computeScore } from './scoring.js';
+import { parseChallengeMeta } from './schema.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,7 +52,10 @@ export class ChallengeManager {
     if (!fs.existsSync(metaPath)) return null;
 
     const metaRaw = fs.readFileSync(metaPath, 'utf-8');
-    const meta = yaml.load(metaRaw) as Record<string, unknown>;
+    const meta = parseChallengeMeta(yaml.load(metaRaw), metaPath);
+    if (meta.level && meta.level !== level) {
+      throw new Error(`Challenge "${meta.id}" declares level "${meta.level}" but lives in "${level}/"`);
+    }
 
     const hintFiles: string[] = [];
     const hintsDir = path.join(dirPath, 'hints');
@@ -63,26 +67,26 @@ export class ChallengeManager {
     }
 
     return {
-      id: meta.id as string,
-      title: meta.title as string,
+      id: meta.id,
+      title: meta.title,
       level,
-      topic: (meta.topic as ChallengeTopic) || 'github-actions',
-      category: (meta.category as Challenge['category']) || 'security',
-      estimatedTime: (meta.estimated_time as string) || '15m',
-      points: (meta.points as number) || 100,
-      description: (meta.description as string) || '',
-      tags: (meta.tags as string[]) || [],
-      prerequisites: (meta.prerequisites as string[]) || [],
-      objectives: (meta.objectives as string[]) || [],
-      references: (meta.references as Challenge['references']) || [],
+      topic: meta.topic,
+      category: meta.category,
+      estimatedTime: meta.estimated_time,
+      points: meta.points,
+      description: meta.description,
+      tags: meta.tags,
+      prerequisites: meta.prerequisites,
+      objectives: meta.objectives,
+      references: meta.references,
       validation: {
-        type: (meta.validation as Record<string, unknown>)?.type as Challenge['validation']['type'] || 'workflow-check',
-        expected: ((meta.validation as Record<string, unknown>)?.expected as any[]) || [],
+        type: meta.validation.type,
+        expected: meta.validation.expected,
       },
       scoring: {
-        hints_used_penalty: ((meta.scoring as Record<string, unknown>)?.hints_used_penalty as number) || 25,
-        time_bonus: ((meta.scoring as Record<string, unknown>)?.time_bonus as number) || 50,
-        pass_threshold: clampThreshold((meta.scoring as Record<string, unknown>)?.pass_threshold),
+        hints_used_penalty: meta.scoring.hints_used_penalty,
+        time_bonus: meta.scoring.time_bonus,
+        pass_threshold: clampThreshold(meta.scoring.pass_threshold),
       },
       paths: {
         vulnerable: path.join(dirPath, 'vulnerable', 'workflow.yml'),
