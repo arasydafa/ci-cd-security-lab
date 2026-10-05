@@ -1,28 +1,31 @@
 import { execSync } from 'child_process';
 import type { Step, StepResult, WorkflowResult, SecurityFinding } from '@cicd-lab/shared';
-import { SimulationContext, resolveEnvironment, checkPermissions } from './environment.js';
+import { SimulationContext, resolveEnvironment, checkPermissions, type Clock } from './environment.js';
 import { type ActionContext, builtinActions } from './actions/index.js';
+import { runSandboxed } from './sandbox.js';
+
+export type ExecMode = 'dry-run' | 'host' | 'sandbox';
 
 /**
- * Real execution is opt-in (`CICD_LAB_EXEC=1`), set only on explicit user
- * invocation paths (CLI `run`, API `/simulate`). Everywhere else —
- * validation, tests, CI — scripts are dry-run: executing fixture `run:`
- * blocks for real once wiped `node_modules` mid-suite on Linux (a bare
- * `run: npm ci` resolves to the repo root and reinstalls under a timeout).
- * Full hermetic-by-default + sandbox is Fase 6; this gate makes the
- * current behavior explicit and the test suite side-effect free.
+ * Execution mode for user `run:` scripts. Default is dry-run: nothing
+ * executes on the host. `host` runs scripts directly (explicit, dangerous),
+ * `sandbox` runs them in an ephemeral no-network container (opt-in).
+ * Set via CICD_LAB_EXEC (unset/dry-run, 1/host, sandbox) or CLI --exec.
  */
-export function isExecAllowed(): boolean {
-  return process.env.CICD_LAB_EXEC === '1';
+export function resolveExecMode(): ExecMode {
+  const v = (process.env.CICD_LAB_EXEC || '').trim().toLowerCase();
+  if (v === '1' || v === 'host') return 'host';
+  if (v === 'sandbox') return 'sandbox';
+  return 'dry-run';
 }
 
 export class Executor {
   private ctx: SimulationContext;
-  private startTime: Date;
+  private clock: Clock;
 
-  constructor(ctx: SimulationContext) {
+  constructor(ctx: SimulationContext, clock: Clock = () => new Date()) {
     this.ctx = ctx;
-    this.startTime = new Date();
+    this.clock = clock;
   }
 
   async executeSteps(steps: Step[], jobEnv?: Record<string, string>): Promise<StepResult[]> {
@@ -42,7 +45,7 @@ export class Executor {
 
   private async executeStep(step: Step, jobEnv?: Record<string, string>): Promise<StepResult> {
     const name = step.name || step.uses || step.run?.slice(0, 40) || 'unnamed';
-    const startTime = new Date().toISOString();
+    const startTime = this.clock().toISOString();
 
     this.ctx.logs.push(`[${name}] Starting...`);
 
@@ -58,11 +61,11 @@ export class Executor {
           output: '',
           duration: 0,
           startTime,
-          endTime: new Date().toISOString(),
+          endTime: this.clock().toISOString(),
         };
       }
     } catch (error) {
-      const endTime = new Date().toISOString();
+      const endTime = this.clock().toISOString();
       const msg = error instanceof Error ? error.message : String(error);
       this.ctx.logs.push(`[${name}] FAILED: ${msg}`);
 
@@ -94,7 +97,7 @@ export class Executor {
 
     if (handler) {
       const output = await handler(actionCtx);
-      const endTime = new Date().toISOString();
+      const endTime = this.clock().toISOString();
       this.ctx.logs.push(`[${name}] Completed successfully`);
       return { name, status: 'success', output, duration: 0, startTime, endTime };
     }
@@ -106,7 +109,7 @@ export class Executor {
       category: 'actions',
       message: `Action ${actionName}@${actionVersion} was simulated, not executed`,
     });
-    const endTime = new Date().toISOString();
+    const endTime = this.clock().toISOString();
     return { name, status: 'success', output: `Simulated: ${actionName}`, duration: 0, startTime, endTime };
   }
 
@@ -119,12 +122,16 @@ export class Executor {
     const env = resolveEnvironment(step.env, jobEnv, undefined, this.ctx);
     const script = step.run || '';
 
-    if (!isExecAllowed()) {
+    const mode = resolveExecMode();
+    if (mode === 'dry-run') {
       const firstLine = script.split('\n')[0].trim().slice(0, 120);
       const output = `[dry-run] ${firstLine}`;
       this.ctx.logs.push(`[${name}] ${output}`);
-      const endTime = new Date().toISOString();
+      const endTime = this.clock().toISOString();
       return { name, status: 'success', output, duration: 0, startTime, endTime };
+    }
+    if (mode === 'sandbox') {
+      return await this.executeSandboxed(step, name, startTime);
     }
 
     const shell = step.shell || 'bash';
@@ -148,15 +155,40 @@ export class Executor {
 
       if (step['continue-on-error']) {
         this.ctx.logs.push(`[${name}] Ignored due to continue-on-error`);
-        const endTime = new Date().toISOString();
+        const endTime = this.clock().toISOString();
         return { name, status: 'success', output, duration: 0, startTime, endTime };
       }
 
-      const endTime = new Date().toISOString();
+      const endTime = this.clock().toISOString();
       return { name, status: 'failure', output, duration: 0, startTime, endTime };
     }
 
-    const endTime = new Date().toISOString();
+    const endTime = this.clock().toISOString();
+    this.ctx.logs.push(`[${name}] Completed successfully`);
+    return { name, status: 'success', output, duration: 0, startTime, endTime };
+  }
+
+  private async executeSandboxed(
+    step: Step,
+    name: string,
+    startTime: string
+  ): Promise<StepResult> {
+    let output = '';
+    try {
+      output = runSandboxed(step.run || '');
+      this.ctx.logs.push(`[${name}] Output: ${output.trim().slice(0, 500)}`);
+    } catch (sandboxError) {
+      const endTime = this.clock().toISOString();
+      const msg = sandboxError instanceof Error ? sandboxError.message : String(sandboxError);
+      this.ctx.logs.push(`[${name}] Sandbox failed: ${msg}`);
+      if (step['continue-on-error']) {
+        this.ctx.logs.push(`[${name}] Ignored due to continue-on-error`);
+        return { name, status: 'success', output: msg, duration: 0, startTime, endTime };
+      }
+      return { name, status: 'failure', output: msg, duration: 0, startTime, endTime };
+    }
+
+    const endTime = this.clock().toISOString();
     this.ctx.logs.push(`[${name}] Completed successfully`);
     return { name, status: 'success', output, duration: 0, startTime, endTime };
   }

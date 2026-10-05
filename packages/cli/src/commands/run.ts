@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import type { ChallengeManager } from '@cicd-lab/simulator';
+import { resolveExecMode } from '@cicd-lab/simulator';
 import chalk from 'chalk';
 
 interface ProgressData {
@@ -37,7 +38,7 @@ function saveProgress(data: ProgressData): void {
 export async function runCommand(
   manager: ChallengeManager,
   file: string | undefined,
-  opts: { challenge?: string }
+  opts: { challenge?: string; exec?: string | boolean }
 ): Promise<void> {
   const challengeId = opts.challenge;
 
@@ -67,10 +68,21 @@ export async function runCommand(
     : new Date().toISOString();
   const elapsedMs = Math.max(0, Date.now() - new Date(startedAt).getTime());
 
-  // Explicit user invocation: allow real step execution (see executor gate).
-  process.env.CICD_LAB_EXEC = '1';
+  // Execution mode: dry-run unless explicitly opted in. --exec host runs
+  // scripts on this machine (dangerous); --exec sandbox uses docker.
+  const rawExec = typeof opts.exec === 'string' ? opts.exec.toLowerCase() : opts.exec ? 'host' : undefined;
+  if (rawExec === 'sandbox' || rawExec === 'host' || rawExec === '1') {
+    process.env.CICD_LAB_EXEC = rawExec === '1' ? 'host' : rawExec;
+  } else if (rawExec !== undefined) {
+    console.log(chalk.yellow(`\n  Unknown --exec mode "${opts.exec}" — falling back to dry-run.\n`));
+  }
 
   console.log(chalk.bold('\n  Running simulation...\n'));
+  if (resolveExecMode() === 'dry-run') {
+    console.log(chalk.dim('  (dry-run: steps are simulated, nothing executes — use --exec host|sandbox to run for real)\n'));
+  } else if (resolveExecMode() === 'host') {
+    console.log(chalk.yellow('  (executing steps on THIS machine — untrusted code can harm it)\n'));
+  }
 
   try {
     const result = await manager.runSimulation(challengeId || '', workflowYaml, hintsUsed, elapsedMs);
