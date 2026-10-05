@@ -841,6 +841,114 @@ const secretsJsonDump = defineRule({
   },
 });
 
+const CHECKOUT_USES_RE = /actions\/checkout@/i;
+
+const runnerGhostCredentials = defineRule({
+  id: 'runner-ghost-credentials',
+  severity: 'medium',
+  category: 'supply-chain',
+  summary: 'Persistent runner keeps checkout credentials on disk',
+  whyItMatters:
+    'Checkout stores the token in .git/config by default; on a persistent self-hosted runner that credential — plus the whole workspace — survives into later jobs, including untrusted ones.',
+  fixHint:
+    'Set persist-credentials: false on checkouts that never push, and prefer ephemeral single-job runners.',
+  reference: GHA_REF,
+  detect: ({ workflow, rawYaml }) => {
+    const out: RuleFinding[] = [];
+    for (const [jobId, job] of Object.entries(workflow.jobs)) {
+      const j = job as Job;
+      const runsOn = j['runs-on'];
+      const labels = Array.isArray(runsOn) ? runsOn : typeof runsOn === 'string' ? [runsOn] : [];
+      if (!labels.includes('self-hosted')) continue;
+      for (const step of j.steps || []) {
+        if (!step.uses || !CHECKOUT_USES_RE.test(step.uses)) continue;
+        // NOTE: js-yaml parses `persist-credentials: false` as boolean false.
+        const raw = step.with
+          ? (step.with as Record<string, unknown>)['persist-credentials']
+          : undefined;
+        if (raw === false || (typeof raw === 'string' && raw.trim().toLowerCase() === 'false')) {
+          continue;
+        }
+        out.push(
+          makeFinding(
+            runnerGhostCredentials,
+            `Checkout on persistent runner (job "${jobId}") keeps credentials on disk — set persist-credentials: false`,
+            step.uses,
+            { workflow, rawYaml },
+          ),
+        );
+      }
+    }
+    return out;
+  },
+});
+
+const SCANNER_USES_RE = /(trivy-action|grype-action|gitleaks-action|semgrep|codeql-action\/analyze)/i;
+const UPLOAD_SARIF_RE = /upload-sarif@/i;
+
+function stepRunsScanner(step: Step): boolean {
+  if (step.uses && SCANNER_USES_RE.test(step.uses)) return true;
+  return codeSegments(step.run).some((seg) =>
+    /^(sudo\s+)?(trivy|grype|gitleaks|semgrep|codeql)\b/i.test(seg),
+  );
+}
+
+function hasSecurityEventsWrite(workflow: WorkflowFile): boolean {
+  const top = workflow.permissions;
+  if (top && typeof top === 'object' && (top as PermissionsConfig)['security-events'] === 'write') {
+    return true;
+  }
+  return Object.values(workflow.jobs).some((j) => {
+    const p = (j as Job).permissions;
+    return !!p && typeof p === 'object' && (p as PermissionsConfig)['security-events'] === 'write';
+  });
+}
+
+const scanWithoutSarif = defineRule({
+  id: 'scan-without-sarif',
+  severity: 'medium',
+  category: 'monitoring',
+  summary: 'Security scan results never become alerts',
+  whyItMatters:
+    'A scanner whose SARIF is never uploaded produces no code-scanning alerts: the run stays green while findings sit unread in logs or artifacts.',
+  fixHint:
+    'Upload results with github/codeql-action/upload-sarif and grant security-events: write.',
+  reference: '/reference/monitoring',
+  detect: ({ workflow, rawYaml }) => {
+    const sites = eachStep(workflow);
+    if (!sites.some(({ step }) => stepRunsScanner(step))) return [];
+    const uploads = sites.some(({ step }) => step.uses != null && UPLOAD_SARIF_RE.test(step.uses));
+    if (!uploads) {
+      let snippet = 'upload-sarif';
+      for (const { step } of sites) {
+        if (stepRunsScanner(step)) {
+          snippet = (step.uses || codeSegments(step.run)[0] || snippet).trim();
+          break;
+        }
+      }
+      return [
+        makeFinding(
+          scanWithoutSarif,
+          'Security scan runs but no SARIF upload — findings never become alerts',
+          snippet,
+          { workflow, rawYaml },
+        ),
+      ];
+    }
+    if (!hasSecurityEventsWrite(workflow)) {
+      return [
+        makeFinding(
+          scanWithoutSarif,
+          'SARIF upload without security-events: write — the upload is rejected and no alerts appear',
+          'upload-sarif',
+          { workflow, rawYaml },
+        ),
+      ];
+    }
+    return [];
+  },
+});
+
 /** Registry in stable evaluation order. */
 export const RULES: DetectionRule[] = [
   secretsEchoExpression,
@@ -863,6 +971,8 @@ export const RULES: DetectionRule[] = [
   broadOidcTrust,
   oidcMissingIdToken,
   secretsJsonDump,
+  runnerGhostCredentials,
+  scanWithoutSarif,
 ];
 
 export function runRules(ctx: RuleContext): RuleFinding[] {

@@ -307,6 +307,56 @@ describe('rule registry', () => {
     assert.ok(!ruleIds(BASE('    steps:\n      - run: echo "${{ toJSON(github) }}"')).includes('secrets-json-dump'));
   });
 
+  it('flags persistent checkouts, accepts persist-credentials: false', () => {
+    const bad = [
+      'name: PR',
+      'on: pull_request',
+      'jobs:',
+      '  pr-build:',
+      '    runs-on: [self-hosted, linux]',
+      '    steps:',
+      '      - uses: actions/checkout@v4',
+      '      - run: ./run-pr-tests.sh',
+    ].join('\n');
+    assert.ok(ruleIds(bad).includes('runner-ghost-credentials'));
+    const clean = bad.replace(
+      '      - uses: actions/checkout@v4',
+      '      - uses: actions/checkout@v4\n        with:\n          persist-credentials: false',
+    );
+    assert.ok(!ruleIds(clean).includes('runner-ghost-credentials'));
+    const hosted = bad.replace('    runs-on: [self-hosted, linux]', '    runs-on: ubuntu-latest');
+    assert.ok(!ruleIds(hosted).includes('runner-ghost-credentials'));
+  });
+
+  it('flags scans without SARIF and uploads without permission', () => {
+    const bad = BASE(
+      '    steps:\n      - uses: actions/checkout@v4\n      - run: trivy fs --format sarif -o results.sarif .\n      - run: npm test',
+    );
+    assert.ok(ruleIds(bad).includes('scan-without-sarif'));
+    const good = [
+      'name: Scan',
+      'on: push',
+      'permissions:',
+      '  contents: read',
+      '  security-events: write',
+      'jobs:',
+      '  scan:',
+      '    runs-on: ubuntu-latest',
+      '    steps:',
+      '      - uses: actions/checkout@v4',
+      '      - run: trivy fs --format sarif -o results.sarif .',
+      '      - uses: github/codeql-action/upload-sarif@v4',
+      '        with:',
+      '          sarif_file: results.sarif',
+    ].join('\n');
+    assert.ok(!ruleIds(good).includes('scan-without-sarif'));
+    const noPerm = good.replace('  security-events: write\n', '');
+    const permFindings = findingsFor(noPerm).filter((f) => f.ruleId === 'scan-without-sarif');
+    assert.equal(permFindings.length, 1);
+    assert.ok((permFindings[0].message || '').includes('security-events'));
+    assert.ok(!ruleIds(BASE('    steps:\n      - run: npm test')).includes('scan-without-sarif'));
+  });
+
   it('lineOf maps snippets to 1-based lines', () => {
     assert.equal(lineOf('a\nb\nc', 'b'), 2);
     assert.equal(lineOf('a\nb', 'zzz'), undefined);

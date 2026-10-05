@@ -1,0 +1,29 @@
+id: sarif-alerting
+title: "Silent Scanner"
+level: intermediate
+topic: monitoring
+category: security
+estimated_time: 15m
+points: 150
+description: |
+  This workflow runs a Trivy vulnerability scan but never uploads the SARIF,
+  so findings never become code-scanning alerts. The run stays green while
+  vulnerabilities sit unread. Surface the results as alerts.
+tags: [sarif, scanning, alerting]
+prerequisites: [mon-no-build-status]
+objectives:
+  - Explain why scan output without SARIF upload produces no alerts
+  - Upload results with upload-sarif and security-events write
+  - Verify findings appear as code-scanning alerts
+references:
+  - page: monitoring
+    label: Code scanning alerts guide
+validation:
+  type: workflow-check
+  expected:
+    # Semantic check: scans must upload SARIF with alerting permission.
+    - predicate: no-rule-findings
+      rules: [scan-without-sarif]
+scoring:
+  hints_used_penalty: 30
+  time_bonus: 75

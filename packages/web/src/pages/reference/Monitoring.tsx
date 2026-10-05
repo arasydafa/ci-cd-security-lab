@@ -16,11 +16,14 @@ const vuln4_good = '# Terraform Cloud audit logging\nterraform {\n  cloud {\n   
 const vuln5_bad = '# No health check configured\n# Load balancer sends traffic to broken instances\n# No automatic rollback on failure';
 const vuln5_good = '# Kubernetes with health checks\nspec:\n  containers:\n  - name: app\n    livenessProbe:\n      httpGet:\n        path: /health\n        port: 8080\n      initialDelaySeconds: 10\n      periodSeconds: 30\n    readinessProbe:\n      httpGet:\n        path: /ready\n        port: 8080\n      initialDelaySeconds: 5\n      periodSeconds: 10';
 
+const vuln6_bad = '- run: trivy fs --format sarif --output results.sarif .\n- run: npm test  # scan output sits in the workspace, zero alerts';
+const vuln6_good = 'permissions:\n  contents: read\n  security-events: write\nsteps:\n  - run: trivy fs --format sarif --output results.sarif .\n  - uses: github/codeql-action/upload-sarif@v4\n    with:\n      sarif_file: results.sarif  # findings become code-scanning alerts';
+
 const alertRules = '# Prometheus alerting rule\ngroups:\n- name: security\n  rules:\n  - alert: SecurityScanFailed\n    expr: security_scan_passed == 0\n    for: 5m\n    labels:\n      severity: critical\n    annotations:\n      summary: "Security scan failed on {{ $labels.repo }}"\n      description: "Security scan has been failing for more than 5 minutes"\n\n  - alert: UnauthorizedDeploy\n    expr: rate(deployments_total{authorized="false"}[1h]) > 0\n    labels:\n      severity: critical\n    annotations:\n      summary: "Unauthorized deployment attempt detected"';
 
 const logSanitize = '# Node.js log sanitization example\nconst sensitiveKeys = ["password", "token", "secret", "key", "authorization"];\n\nfunction sanitize(obj) {\n  if (typeof obj !== "object" || obj === null) return obj;\n  const clean = {};\n  for (const [k, v] of Object.entries(obj)) {\n    if (sensitiveKeys.some(s => k.toLowerCase().includes(s))) {\n      clean[k] = "[REDACTED]";\n    } else {\n      clean[k] = sanitize(v);\n    }\n  }\n  return clean;\n}\n\nconsole.log(JSON.stringify(sanitize(requestBody)));';
 
-const pipelineNotify = 'name: CI/CD Pipeline\non: push\n\njobs:\n  security-scan:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - name: Run Trivy vulnerability scanner\n        uses: aquasecurity/trivy-action@master\n        with:\n          image-ref: myapp:${{ github.sha }}\n          format: sarif\n          output: trivy-results.sarif\n      - name: Upload scan results\n        uses: github/codeql-action/upload-sarif@v3\n        with:\n          sarif_file: trivy-results.sarif\n\n  notify:\n    needs: security-scan\n    if: always()\n    runs-on: ubuntu-latest\n    steps:\n      - name: Slack notification\n        uses: slackapi/slack-github-action@v1\n        with:\n          payload: |\n            {\n              "text": "Pipeline ${{ needs.security-scan.result }}: ${{ github.repository }}"\n            }';
+const pipelineNotify = 'name: CI/CD Pipeline\non: push\n\njobs:\n  security-scan:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - name: Run Trivy vulnerability scanner\n        uses: aquasecurity/trivy-action@master\n        with:\n          image-ref: myapp:${{ github.sha }}\n          format: sarif\n          output: trivy-results.sarif\n      - name: Upload scan results\n        uses: github/codeql-action/upload-sarif@v4\n        with:\n          sarif_file: trivy-results.sarif\n\n  notify:\n    needs: security-scan\n    if: always()\n    runs-on: ubuntu-latest\n    steps:\n      - name: Slack notification\n        uses: slackapi/slack-github-action@v1\n        with:\n          payload: |\n            {\n              "text": "Pipeline ${{ needs.security-scan.result }}: ${{ github.repository }}"\n            }';
 
 export function Monitoring() {
   return (
@@ -37,6 +40,7 @@ export function Monitoring() {
         <Vuln num={3} title="Secrets in Logs" description="Echoing secrets, printing environment variables, or logging API responses with credentials exposes them in CI/CD logs." bad={vuln3_bad} good={vuln3_good} />
         <Vuln num={4} title="No Audit Trail" description="Without logging who deployed what and when, incident response and compliance become impossible." bad={vuln4_bad} good={vuln4_good} />
         <Vuln num={5} title="Missing Health Checks" description="Deploying without health checks means broken or vulnerable versions stay in rotation, serving traffic and accumulating attacks." bad={vuln5_bad} good={vuln5_good} />
+        <Vuln num={6} title="Silent Scanners" description="Security scans whose SARIF is never uploaded produce no code-scanning alerts — green runs with unread findings." bad={vuln6_bad} good={vuln6_good} />
       </section>
 
       <section>
@@ -76,6 +80,7 @@ export function Monitoring() {
           'Monitor for secrets in logs with tools like gitleaks',
           'Track deployment frequency and success rate',
           'Document incident response procedures',
+          'Upload every scan as SARIF so findings become alerts',
         ]} />
       </section>
 
@@ -86,6 +91,7 @@ export function Monitoring() {
             { id: 'mon-no-build-status', label: 'No Build Status' },
             { id: 'mon-silent-failure', label: 'Silent Failures' },
             { id: 'mon-log-secrets', label: 'Logging Secrets' },
+            { id: 'sarif-alerting', label: 'Silent Scanner' },
           ]}
         />
       </section>
