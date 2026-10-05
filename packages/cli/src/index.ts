@@ -33,6 +33,7 @@ program
   .command('run [file]')
   .description('Run a workflow simulation (default: vulnerable workflow of current challenge)')
   .option('-c, --challenge <id>', 'Challenge ID to run')
+  .option('--exec [mode]', 'Execute steps for real: "host" (this machine, dangerous) or "sandbox" (docker, opt-in). Default: dry-run')
   .action((file, opts) => runCommand(manager, file, opts));
 
 program
