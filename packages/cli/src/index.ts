@@ -7,6 +7,7 @@ import { startCommand } from './commands/start.js';
 import { runCommand } from './commands/run.js';
 import { hintCommand } from './commands/hint.js';
 import { progressCommand } from './commands/progress.js';
+import { validateCommand } from './commands/validate.js';
 
 const program = new Command();
 const manager = new ChallengeManager();
@@ -45,5 +46,10 @@ program
   .option('--export <file>', 'Export progress JSON (web-compatible)')
   .option('--import <file>', 'Import progress JSON (merges, keeps best score)')
   .action((opts) => progressCommand(opts));
+
+program
+  .command('validate [challenge-id]')
+  .description('Authoring gate: schema + fixtures + evasion audit (used by CI)')
+  .action((id) => validateCommand(manager, id));
 
 program.parse();

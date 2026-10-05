@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import { knownPredicates } from './predicates.js';
-import { RULES } from './rules.js';
-
-const KNOWN_RULE_IDS = new Set(RULES.map((r) => r.id));
+import { isKnownRule } from './rules.js';
 
 const ReferenceSchema = z.object({
   page: z.enum(['github-actions', 'docker', 'kubernetes', 'terraform', 'monitoring']),
@@ -28,7 +26,7 @@ const ExpectationSchema = z
       });
     }
     for (const rule of exp.rules || []) {
-      if (!KNOWN_RULE_IDS.has(rule)) {
+      if (!isKnownRule(rule)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: `Unknown rule "${rule}". Register it with registerRule() first.`,

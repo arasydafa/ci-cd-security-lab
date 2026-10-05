@@ -984,3 +984,35 @@ export function runRules(ctx: RuleContext): RuleFinding[] {
     }
   });
 }
+
+const RULE_ID_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/** True when a rule id is registered (used by the challenge schema). */
+export function isKnownRule(id: string): boolean {
+  return RULES.some((r) => r.id === id);
+}
+
+/**
+ * Authoring API: register a new detection rule at startup (or in tests).
+ * Validates shape and rejects duplicate ids so a typo can never shadow
+ * or silently duplicate an existing rule.
+ */
+export function registerRule(rule: DetectionRule): DetectionRule {
+  if (!rule || typeof rule !== 'object') {
+    throw new Error('registerRule: rule must be an object');
+  }
+  if (!RULE_ID_RE.test(rule.id || '')) {
+    throw new Error(`registerRule: id "${rule.id}" must be kebab-case`);
+  }
+  if (RULES.some((r) => r.id === rule.id)) {
+    throw new Error(`registerRule: duplicate rule id "${rule.id}"`);
+  }
+  if (typeof rule.detect !== 'function') {
+    throw new Error(`registerRule: rule "${rule.id}" needs a detect() function`);
+  }
+  if (!rule.summary || !rule.fixHint) {
+    throw new Error(`registerRule: rule "${rule.id}" needs summary and fixHint`);
+  }
+  RULES.push(rule);
+  return rule;
+}
