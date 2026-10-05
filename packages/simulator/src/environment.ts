@@ -100,6 +100,18 @@ export function interpolate(template: string, ctx: SimulationContext): string {
   });
 }
 
+export type Clock = () => Date;
+
+/**
+ * Deterministic clock for reproducible simulations: starts at a fixed
+ * instant and advances stepMs per call, so timestamps, durations, and logs
+ * are byte-identical across runs (tests, CI diffing, authoring harness).
+ */
+export function fixedClock(startIso = '2026-01-01T00:00:00.000Z', stepMs = 1000): Clock {
+  let t = Date.parse(startIso);
+  return () => new Date((t += stepMs));
+}
+
 export function checkPermissions(
   permissions: PermissionsConfig | string | undefined,
   ctx: SimulationContext

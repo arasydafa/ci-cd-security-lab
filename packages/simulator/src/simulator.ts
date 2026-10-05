@@ -1,6 +1,6 @@
 import type { WorkflowFile, Job, Step, WorkflowResult, JobResult, StepResult, SecurityFinding } from '@cicd-lab/shared';
 import { Executor } from './executor.js';
-import { SimulationContext, createContext, checkPermissions } from './environment.js';
+import { SimulationContext, createContext, checkPermissions, fixedClock, type Clock } from './environment.js';
 import { runRules } from './rules.js';
 
 export interface SimulationOptions {
@@ -8,10 +8,17 @@ export interface SimulationOptions {
   /** Raw YAML source — enables detection rules with line attribution. */
   rawYaml?: string;
   context?: Partial<SimulationContext>;
+  /**
+   * Reproducible mode: fixed fixture clock (2026-01-01T00:00, +1s per stamp)
+   * instead of wall time. Timestamps, durations, and logs become
+   * byte-identical across runs — use it in tests, CI diffing, and harness.
+   */
+  deterministic?: boolean;
 }
 
 export async function simulate(options: SimulationOptions): Promise<WorkflowResult> {
-  const startTime = new Date();
+  const now: Clock = options.deterministic ? fixedClock() : () => new Date();
+  const startTime = now();
   const ctx = createContext(options.context);
   const workflow = options.workflow;
 
@@ -33,12 +40,13 @@ export async function simulate(options: SimulationOptions): Promise<WorkflowResu
     if (nextIndex === -1) {
       // All remaining jobs have unmet dependencies
       for (const [id] of jobQueue) {
+        const stamp = now().toISOString();
         jobResults.push({
           name: id,
           status: 'skipped',
           steps: [],
-          startTime: startTime.toISOString(),
-          endTime: startTime.toISOString(),
+          startTime: stamp,
+          endTime: stamp,
         });
         executed.add(id);
       }
@@ -46,7 +54,7 @@ export async function simulate(options: SimulationOptions): Promise<WorkflowResu
     }
 
     const [jobId, job] = jobQueue.splice(nextIndex, 1)[0];
-    const result = await executeJob(jobId, job, ctx, workflow.env);
+    const result = await executeJob(jobId, job, ctx, workflow.env, now);
     jobResults.push(result);
     executed.add(jobId);
 
@@ -56,12 +64,13 @@ export async function simulate(options: SimulationOptions): Promise<WorkflowResu
         const j = workflow.jobs[id];
         const needs = Array.isArray(j.needs) ? j.needs : j.needs ? [j.needs] : [];
         if (needs.includes(jobId)) {
+          const stamp = now().toISOString();
           jobResults.push({
             name: id,
             status: 'skipped',
             steps: [],
-            startTime: new Date().toISOString(),
-            endTime: new Date().toISOString(),
+            startTime: stamp,
+            endTime: stamp,
           });
           executed.add(id);
         }
@@ -69,7 +78,7 @@ export async function simulate(options: SimulationOptions): Promise<WorkflowResu
     }
   }
 
-  const endTime = new Date();
+  const endTime = now();
   const allPassed = jobResults.every((j) => j.status === 'success' || j.status === 'skipped');
 
   // Static detection rules (registry) — pure AST/YAML analysis with line attribution.
@@ -92,18 +101,19 @@ async function executeJob(
   jobId: string,
   job: Job,
   ctx: SimulationContext,
-  workflowEnv?: Record<string, string>
+  workflowEnv: Record<string, string> | undefined,
+  now: Clock,
 ): Promise<JobResult> {
-  const startTime = new Date().toISOString();
+  const startTime = now().toISOString();
   ctx.logs.push(`\n━━━ Job: ${job.name || jobId} ━━━`);
 
   // Check job-level permissions
   checkPermissions(job.permissions, ctx);
 
-  const executor = new Executor(ctx);
+  const executor = new Executor(ctx, now);
   const stepResults = await executor.executeSteps(job.steps, job.env);
 
-  const endTime = new Date().toISOString();
+  const endTime = now().toISOString();
   const allSuccess = stepResults.every((s) => s.status === 'success');
   const anyFailure = stepResults.some((s) => s.status === 'failure');
 
