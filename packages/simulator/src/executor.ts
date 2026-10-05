@@ -3,6 +3,19 @@ import type { Step, StepResult, WorkflowResult, SecurityFinding } from '@cicd-la
 import { SimulationContext, resolveEnvironment, checkPermissions } from './environment.js';
 import { type ActionContext, builtinActions } from './actions/index.js';
 
+/**
+ * Real execution is opt-in (`CICD_LAB_EXEC=1`), set only on explicit user
+ * invocation paths (CLI `run`, API `/simulate`). Everywhere else —
+ * validation, tests, CI — scripts are dry-run: executing fixture `run:`
+ * blocks for real once wiped `node_modules` mid-suite on Linux (a bare
+ * `run: npm ci` resolves to the repo root and reinstalls under a timeout).
+ * Full hermetic-by-default + sandbox is Fase 6; this gate makes the
+ * current behavior explicit and the test suite side-effect free.
+ */
+export function isExecAllowed(): boolean {
+  return process.env.CICD_LAB_EXEC === '1';
+}
+
 export class Executor {
   private ctx: SimulationContext;
   private startTime: Date;
@@ -105,6 +118,14 @@ export class Executor {
   ): Promise<StepResult> {
     const env = resolveEnvironment(step.env, jobEnv, undefined, this.ctx);
     const script = step.run || '';
+
+    if (!isExecAllowed()) {
+      const firstLine = script.split('\n')[0].trim().slice(0, 120);
+      const output = `[dry-run] ${firstLine}`;
+      this.ctx.logs.push(`[${name}] ${output}`);
+      const endTime = new Date().toISOString();
+      return { name, status: 'success', output, duration: 0, startTime, endTime };
+    }
 
     const shell = step.shell || 'bash';
     let output = '';

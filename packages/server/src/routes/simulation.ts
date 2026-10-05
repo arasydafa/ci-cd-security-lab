@@ -30,6 +30,8 @@ router.post('/', async (req, res) => {
   const { challengeId, workflowYaml, hintsUsed, elapsedMs } = parsed.data;
 
   try {
+    // Explicit user invocation over the API: allow real step execution.
+    process.env.CICD_LAB_EXEC = '1';
     const result = await manager.runSimulation(challengeId, workflowYaml, hintsUsed ?? 0, elapsedMs);
     res.json({ data: result });
   } catch (error) {

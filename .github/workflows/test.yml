@@ -34,14 +34,6 @@ jobs:
       - name: Run simulator tests
         run: npm run test --workspace=@cicd-lab/simulator
 
-      - name: Diagnose CLI module tree
-        run: |
-          node --version
-          npm --version
-          ls node_modules/chalk node_modules/commander
-          ls packages/cli/node_modules 2>/dev/null || echo "no nested cli node_modules"
-          node -e "console.log(require.resolve('chalk', { paths: ['packages/cli'] }))"
-
       - name: Build CLI
         run: npm run build --workspace=@cicd-lab/cli
 
