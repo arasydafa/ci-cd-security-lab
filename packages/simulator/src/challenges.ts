@@ -148,6 +148,7 @@ export class ChallengeManager {
     workflowYaml?: string,
     hintsUsed = 0,
     elapsedMs?: number,
+    solutionViewed = false,
   ): Promise<SimulationResult> {
     const yamlContent = workflowYaml || this.getVulnerableWorkflow(challengeId);
     if (!yamlContent) {
@@ -172,6 +173,8 @@ export class ChallengeManager {
           passedChecks,
           totalChecks: validation.checks.length,
           elapsedMs,
+          totalHints: challenge.paths.hints.length,
+          solutionViewed,
         })
       : {
           basePoints: 0,

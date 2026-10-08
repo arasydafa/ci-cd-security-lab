@@ -2,6 +2,13 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { ChallengeManager } from '@cicd-lab/simulator';
+import {
+  availableBalance,
+  bankedPoints,
+  hintHolds,
+  type BalanceChallenge,
+  type BalanceProgress,
+} from '@cicd-lab/shared';
 import chalk from 'chalk';
 
 interface ProgressEntry {
@@ -89,10 +96,17 @@ export function progressCommand(opts: { export?: string; import?: string } = {})
   const completed = Object.entries(progress).filter(([, p]) => p.completed);
   const attempted = Object.entries(progress).filter(([, p]) => p.attempts > 0);
   const clean = Object.entries(progress).filter(([, p]) => isCleanSolve(p));
-  const totalEarned = completed.reduce((sum, [id, p]) => {
-    const challenge = allChallenges.find((c) => c.id === id);
-    return sum + (challenge ? Math.min(p.bestScore, challenge.points) : 0);
-  }, 0);
+  const balanceChallenges: BalanceChallenge[] = allChallenges.map((c) => ({
+    id: c.id,
+    points: c.points,
+    hintsPenalty: c.scoring.hints_used_penalty,
+  }));
+  const balanceProgress = progress as BalanceProgress;
+  // Banked score (capped at each challenge's max) — same math as the web
+  // Dashboard, so the two surfaces always agree.
+  const totalEarned = bankedPoints(balanceProgress, balanceChallenges);
+  const freeBalance = availableBalance(balanceProgress, balanceChallenges);
+  const heldByHints = hintHolds(balanceProgress, balanceChallenges);
   const totalPossible = allChallenges.reduce((sum, c) => sum + c.points, 0);
 
   console.log(chalk.bold('\n  CI/CD Security Lab — Progress\n'));
@@ -109,6 +123,7 @@ export function progressCommand(opts: { export?: string; import?: string } = {})
   console.log(`  Challenges attempted: ${chalk.yellow(attempted.length.toString())} / ${allChallenges.length}`);
   console.log(`  Clean solves (no hints, no solution): ${chalk.cyan(clean.length.toString())}`);
   console.log(`  Total score:         ${chalk.cyan(totalEarned.toString())} / ${totalPossible} pts`);
+  console.log(`  Free balance:        ${chalk.cyan(freeBalance.toString())} pts${heldByHints > 0 ? chalk.dim(` (${heldByHints} held by open hints)`) : ''}`);
   console.log();
 
   // Per-challenge details

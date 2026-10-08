@@ -12,6 +12,14 @@ export interface ScoreInput {
   totalChecks: number;
   /** Wall-clock solve time in ms (first touch → pass). Absent = no bonus. */
   elapsedMs?: number;
+  /** Total hints the challenge offers. Used to charge "solution = all hints". */
+  totalHints?: number;
+  /**
+   * True once the learner revealed the solution. The solution is charged as if
+   * every hint had been used (max hint penalty) and forfeits the time bonus —
+   * so copying the answer never out-scores a real solve.
+   */
+  solutionViewed?: boolean;
 }
 
 /**
@@ -43,10 +51,20 @@ export function computeScore(input: ScoreInput): ScoreResult {
   const partialRatio = totalChecks === 0 ? 0 : passedChecks / totalChecks;
   const passed = partialRatio >= input.threshold;
   const basePartial = Math.round(input.basePoints * partialRatio);
-  const totalDeductions = Math.max(0, input.hintsUsed) * Math.max(0, input.hintsPenalty);
+
+  // Viewing the solution is charged as if every hint had been used, so the
+  // full-answer shortcut never scores better than solving with hints.
+  const solutionViewed = input.solutionViewed === true;
+  const totalHints = Math.max(0, Math.floor(input.totalHints ?? 0));
+  const hintsUsed = solutionViewed
+    ? Math.max(input.hintsUsed, totalHints)
+    : input.hintsUsed;
+
+  const totalDeductions = Math.max(0, hintsUsed) * Math.max(0, input.hintsPenalty);
   const afterDeductions = Math.max(0, basePartial - totalDeductions);
   const estimatedMs = parseEstimatedTime(input.estimatedTime);
   const timeBonusAwarded =
+    !solutionViewed &&
     passed &&
     input.elapsedMs != null &&
     Number.isFinite(input.elapsedMs) &&
@@ -57,7 +75,7 @@ export function computeScore(input: ScoreInput): ScoreResult {
 
   return {
     basePoints: input.basePoints,
-    hintsUsed: input.hintsUsed,
+    hintsUsed,
     hintsPenalty: input.hintsPenalty,
     totalDeductions,
     finalScore: afterDeductions + timeBonusAwarded,

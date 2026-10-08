@@ -10,6 +10,7 @@ const SimulateSchema = z.object({
   workflowYaml: z.string().optional(),
   hintsUsed: z.number().int().min(0).optional(),
   elapsedMs: z.number().min(0).optional(),
+  solutionViewed: z.boolean().optional(),
 });
 
 // POST /api/v1/simulate — run a workflow simulation
@@ -27,12 +28,18 @@ router.post('/', async (req, res) => {
     return;
   }
 
-  const { challengeId, workflowYaml, hintsUsed, elapsedMs } = parsed.data;
+  const { challengeId, workflowYaml, hintsUsed, elapsedMs, solutionViewed } = parsed.data;
 
   // Default path stays dry-run: the API never execSyncs user scripts on the
   // host. Real execution is an explicit local opt-in (CLI --exec).
   try {
-    const result = await manager.runSimulation(challengeId, workflowYaml, hintsUsed ?? 0, elapsedMs);
+    const result = await manager.runSimulation(
+      challengeId,
+      workflowYaml,
+      hintsUsed ?? 0,
+      elapsedMs,
+      solutionViewed ?? false,
+    );
     res.json({ data: result });
   } catch (error) {
     res.status(400).json({

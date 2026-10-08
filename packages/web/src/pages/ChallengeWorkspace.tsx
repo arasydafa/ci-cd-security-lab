@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight, Play, X } from
 import { Alert, Badge, Button, Card, EmptyState, Skeleton, Tabs } from '@omega-os/ui';
 import type { BadgeTone } from '@omega-os/ui';
 import {
+  balanceChallenges,
   dependentsOf,
   isCleanSolve,
   loadProgress,
@@ -15,6 +16,7 @@ import {
   staticSolution,
   type ProgressData,
 } from '../data/staticChallenges.js';
+import { availableForChallenge, canOpenHint, hintCost } from '@cicd-lab/shared';
 import { MarkdownRenderer } from '../components/MarkdownRenderer.js';
 import { YamlEditor } from '../components/YamlEditor.js';
 import { CodeBlock } from '../components/CodeBlock.js';
@@ -127,6 +129,8 @@ export function ChallengeWorkspace() {
   // bundled challenge data, simulation disabled with an honest notice.
   const [offline, setOffline] = useState(false);
   const [offlineNotice, setOfflineNotice] = useState(false);
+  // Shown when a hint is locked because the free balance can't cover it.
+  const [hintGateMsg, setHintGateMsg] = useState<string | null>(null);
 
   // Load challenge and progress
   useEffect(() => {
@@ -175,12 +179,38 @@ export function ChallengeWorkspace() {
   const clean = isCleanSolve(entry);
   const withSolution = solvedWithSolution(entry);
 
+  // Global points-as-balance: hints are locked until this challenge's budget
+  // covers their cost. Same math as the CLI (see @cicd-lab/shared/balance).
+  const balanceList = useMemo(() => balanceChallenges(), []);
+  // Budget the gate compares against: banked points minus holds on OTHER
+  // challenges (this challenge's own hold is what a new hint would add).
+  const budgetForChallenge = id
+    ? Math.max(0, availableForChallenge(progress, balanceList, id))
+    : 0;
+  const hintUnlocked = (num: number) =>
+    !id || canOpenHint(progress, balanceList, id, num);
+
   const nextSteps = useMemo(() => (id ? dependentsOf(id) : []), [id]);
   const related = useMemo(() => (id ? relatedTo(id, 4) : []), [id]);
 
   const loadHint = useCallback(async (num: number) => {
     if (!id) return;
     if (hints[num]) return;
+
+    // Gate: block the reveal when this challenge's budget can't cover the new
+    // hold. The message quotes the same budget/cost the gate compares.
+    if (!canOpenHint(progress, balanceList, id, num)) {
+      const penalty = challenge?.scoring.hints_used_penalty ?? 0;
+      const opened = Math.max(progress[id]?.hintsUsed || 0, num);
+      const budget = Math.max(0, availableForChallenge(progress, balanceList, id));
+      const cost = hintCost({ id, points: challenge?.points ?? 0, hintsPenalty: penalty }, opened);
+      setHintGateMsg(
+        `Hint ${num} is locked — opening ${opened} hint(s) here costs ${cost} pts, but only ${budget} pts are available for this challenge. Solve challenges to bank points first.`,
+      );
+      return;
+    }
+    setHintGateMsg(null);
+
     try {
       const res = await fetch(`/api/v1/challenges/${id}/hint/${num}`);
       if (!res.ok) throw new Error('api unavailable');
@@ -227,7 +257,7 @@ export function ChallengeWorkspace() {
         saveProgress(updated);
       }
     }
-  }, [id, hints, progress]);
+  }, [id, hints, progress, balanceList, challenge]);
 
   const markSolutionViewed = useCallback(() => {
     if (!id) return;
@@ -285,6 +315,7 @@ export function ChallengeWorkspace() {
           workflowYaml: workflow,
           hintsUsed: prevRun?.hintsUsed || 0,
           elapsedMs: Math.max(0, elapsedMs),
+          solutionViewed: !!prevRun?.solutionViewed,
         }),
       });
       const d = await res.json();
@@ -467,13 +498,26 @@ export function ChallengeWorkspace() {
             )}
             {activeTab === 'hints' && (
               <div className="space-y-3">
-                {Array.from({ length: challenge.hintCount }, (_, i) => i + 1).map((num) => (
+                <div className="flex items-center justify-between text-xs text-ot-muted">
+                  <span>Available here: <span className="font-semibold text-ot-text">{budgetForChallenge} pts</span></span>
+                  <span>Each hint holds {challenge.scoring.hints_used_penalty} pts until solved</span>
+                </div>
+
+                {hintGateMsg && (
+                  <Alert tone="info" title="Hint locked" onClose={() => setHintGateMsg(null)}>
+                    {hintGateMsg}
+                  </Alert>
+                )}
+
+                {Array.from({ length: challenge.hintCount }, (_, i) => i + 1).map((num) => {
+                  const unlocked = hintUnlocked(num);
+                  return (
                   <div key={num}>
                     {hints[num] ? (
                       <Alert tone="warning">
                         <MarkdownRenderer>{hints[num]}</MarkdownRenderer>
                       </Alert>
-                    ) : (
+                    ) : unlocked ? (
                       <button
                         onClick={() => loadHint(num)}
                         className="w-full text-left p-3 rounded-ot-md border border-dashed border-ot-border hover:border-warning hover:bg-warning-bg transition-all group"
@@ -490,9 +534,27 @@ export function ChallengeWorkspace() {
                           </span>
                         </span>
                       </button>
+                    ) : (
+                      <button
+                        onClick={() => loadHint(num)}
+                        className="w-full text-left p-3 rounded-ot-md border border-dashed border-ot-border opacity-60 cursor-not-allowed"
+                      >
+                        <span className="flex items-center gap-3">
+                          <span className="w-7 h-7 rounded-full bg-ot-surface border border-ot-border flex items-center justify-center text-sm font-bold text-ot-muted">
+                            {num}
+                          </span>
+                          <span className="text-sm text-ot-muted">
+                            Hint {num} locked
+                          </span>
+                          <span className="text-xs text-ot-muted ml-auto">
+                            needs {challenge.scoring.hints_used_penalty * Math.max(hintsUsed, num)} pts
+                          </span>
+                        </span>
+                      </button>
                     )}
                   </div>
-                ))}
+                  );
+                })}
 
                 <div className="pt-2 border-t border-ot-border mt-4">
                   <button

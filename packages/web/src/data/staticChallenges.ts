@@ -6,6 +6,7 @@
  * scoring stay server-side only — the UI must say so instead of faking it.
  */
 import { STATIC_CHALLENGES } from './challenges.generated.js';
+import type { BalanceChallenge } from '@cicd-lab/shared';
 
 export interface ChallengeRef {
   page: string;
@@ -93,6 +94,18 @@ export function staticHint(id: string, num: number): string | undefined {
 
 export function staticSolution(id: string): string | undefined {
   return STATIC_CHALLENGES.find((c) => c.id === id)?.solutionWorkflow || undefined;
+}
+
+/**
+ * Balance view over every challenge, for the hint gate in @cicd-lab/shared.
+ * Built from the static bundle so it works both online and offline.
+ */
+export function balanceChallenges(): BalanceChallenge[] {
+  return STATIC_CHALLENGES.map((c) => ({
+    id: c.id,
+    points: c.points,
+    hintsPenalty: c.hintsPenalty,
+  }));
 }
 
 const LEVEL_ORDER: Record<string, number> = { beginner: 0, intermediate: 1, advanced: 2 };

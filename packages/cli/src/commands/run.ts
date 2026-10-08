@@ -63,6 +63,7 @@ export async function runCommand(
   // Load progress to get hints used; startedAt anchors the time_bonus clock.
   const progress = loadProgress();
   const hintsUsed = challengeId ? (progress[challengeId]?.hintsUsed || 0) : 0;
+  const solutionViewed = challengeId ? !!progress[challengeId]?.solutionViewed : false;
   const startedAt = challengeId
     ? (progress[challengeId]?.startedAt || new Date().toISOString())
     : new Date().toISOString();
@@ -85,7 +86,7 @@ export async function runCommand(
   }
 
   try {
-    const result = await manager.runSimulation(challengeId || '', workflowYaml, hintsUsed, elapsedMs);
+    const result = await manager.runSimulation(challengeId || '', workflowYaml, hintsUsed, elapsedMs, solutionViewed);
 
     // Print execution logs
     for (const log of result.result.logs) {
@@ -153,14 +154,17 @@ export async function runCommand(
       console.log(chalk.red.bold('  ✗ Challenge FAILED — fix the issues above and try again.'));
       console.log(chalk.dim(`  Partial score so far: ${score.finalScore} / ${score.basePoints} (${score.passedChecks}/${score.totalChecks} fixed)\n`));
 
-      // Record attempt
+      // Record attempt. A later failing run must NOT erase a prior pass —
+      // keep completed/completedAt so the challenge still counts toward the
+      // total score (matches the web, which also preserves them).
       if (challengeId) {
         const prev = progress[challengeId];
         progress[challengeId] = {
           attempts: (prev?.attempts || 0) + 1,
           hintsUsed,
           bestScore: prev?.bestScore || 0,
-          completed: false,
+          completed: prev?.completed || false,
+          completedAt: prev?.completedAt,
           solutionViewed: prev?.solutionViewed,
           startedAt,
         };

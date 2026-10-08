@@ -78,6 +78,45 @@ describe('computeScore', () => {
     const failed = computeScore({ ...base, passedChecks: 1, totalChecks: 2, elapsedMs: 1_000 });
     assert.equal(failed.timeBonusAwarded, 0);
   });
+
+  it('charges solutionViewed as all hints used + forfeits time_bonus', () => {
+    // 2 hints on a 100-pt challenge: viewing the solution costs 2*25 = 50.
+    const s = computeScore({
+      ...base,
+      passedChecks: 3,
+      totalChecks: 3,
+      hintsUsed: 0,
+      totalHints: 2,
+      solutionViewed: true,
+      elapsedMs: 30_000, // fast, but bonus must still be forfeited
+    });
+    assert.equal(s.passed, true);
+    assert.equal(s.hintsUsed, 2);
+    assert.equal(s.totalDeductions, 50);
+    assert.equal(s.timeBonusAwarded, 0);
+    assert.equal(s.finalScore, 50);
+  });
+
+  it('solutionViewed never out-scores solving with the same hints', () => {
+    const opts = { ...base, passedChecks: 3, totalChecks: 3, totalHints: 2, elapsedMs: undefined as number | undefined };
+    const withSolution = computeScore({ ...opts, hintsUsed: 0, solutionViewed: true });
+    const withHints = computeScore({ ...opts, hintsUsed: 2, solutionViewed: false });
+    assert.equal(withSolution.finalScore, withHints.finalScore);
+  });
+
+  it('solutionViewed keeps the higher of actual vs all-hints penalty', () => {
+    // Already used all hints: solutionViewed must not reduce the deduction.
+    const s = computeScore({
+      ...base,
+      passedChecks: 3,
+      totalChecks: 3,
+      hintsUsed: 2,
+      totalHints: 2,
+      solutionViewed: true,
+    });
+    assert.equal(s.hintsUsed, 2);
+    assert.equal(s.totalDeductions, 50);
+  });
 });
 
 describe('fair scoring integration', () => {

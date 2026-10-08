@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Check, Download, Upload } from 'lucide-react';
 import { Button, Card, CodeBlock } from '@omega-os/ui';
 import {
+  balanceChallenges,
   entryChallenges,
   isCleanSolve,
   loadProgress,
@@ -11,6 +12,7 @@ import {
   staticList,
   type ProgressData,
 } from '../data/staticChallenges.js';
+import { bankedPoints } from '@cicd-lab/shared';
 
 interface Challenge {
   id: string;
@@ -60,11 +62,11 @@ export function Dashboard() {
   const completedCount = Object.values(progress).filter((p) => p.completed).length;
   const attemptedCount = Object.values(progress).filter((p) => p.attempts > 0).length;
   const cleanCount = Object.values(progress).filter(isCleanSolve).length;
-  const totalPoints = challenges.reduce((sum, c) => sum + c.points, 0);
-  const earnedPoints = challenges.reduce((sum, c) => {
-    const p = progress[c.id];
-    return sum + (p?.completed ? p.bestScore : 0);
-  }, 0);
+  // Point math uses the static bundle (always present, online or offline) and
+  // the shared capped helper, so it always matches the CLI.
+  const balanceList = balanceChallenges();
+  const totalPoints = balanceList.reduce((sum, c) => sum + c.points, 0);
+  const earnedPoints = bankedPoints(progress, balanceList);
 
   const stats = {
     total: challenges.length,
